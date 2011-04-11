@@ -138,6 +138,7 @@ void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s)
 
 	wpa_drv_cancel_priority(wpa_s);
 	wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);
+	wpa_s->conf->ap_scan = DEFAULT_AP_SCAN;
 	bssid_changed = !is_zero_ether_addr(wpa_s->bssid);
 	os_memset(wpa_s->bssid, 0, ETH_ALEN);
 	os_memset(wpa_s->pending_bssid, 0, ETH_ALEN);
@@ -1816,7 +1817,7 @@ static void wpa_supplicant_event_disassoc(struct wpa_supplicant *wpa_s,
 			fast_reconnect = wpa_s->current_bss;
 			fast_reconnect_ssid = wpa_s->current_ssid;
 		} else if (wpa_s->wpa_state >= WPA_ASSOCIATING)
-			wpa_supplicant_req_scan(wpa_s, 0, 100000);
+			wpa_supplicant_req_scan(wpa_s, 0, 500000);
 		else
 			wpa_dbg(wpa_s, MSG_DEBUG, "Do not request new "
 				"immediate scan");
