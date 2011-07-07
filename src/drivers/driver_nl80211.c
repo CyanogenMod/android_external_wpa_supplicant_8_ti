@@ -9166,6 +9166,39 @@ static int android_pno_stop(struct i802_bss *bss)
 	return android_priv_cmd(bss, "PNOFORCE 0");
 }
 
+
+static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
+					 size_t buf_len)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	int ret = 0;
+
+	if (os_strcasecmp(cmd, "STOP") == 0) {
+		linux_set_iface_flags(drv->global->ioctl_sock, bss->ifname, 0);
+		wpa_msg(drv->ctx, MSG_INFO, WPA_EVENT_DRIVER_STATE "STOPPED");
+	} else if (os_strcasecmp(cmd, "START") == 0) {
+		linux_set_iface_flags(drv->global->ioctl_sock, bss->ifname, 1);
+		wpa_msg(drv->ctx, MSG_INFO, WPA_EVENT_DRIVER_STATE "STARTED");
+	} else if (os_strcasecmp(cmd, "MACADDR") == 0) {
+		u8 macaddr[ETH_ALEN] = {};
+
+		ret = linux_get_ifhwaddr(drv->global->ioctl_sock, bss->ifname,
+					 macaddr);
+		if (!ret)
+			ret = os_snprintf(buf, buf_len,
+					  "Macaddr = " MACSTR "\n",
+					  MAC2STR(macaddr));
+	} else if (os_strcasecmp(cmd, "RELOAD") == 0) {
+		wpa_msg(drv->ctx, MSG_INFO, WPA_EVENT_DRIVER_STATE "HANGED");
+	} else {
+		wpa_printf(MSG_ERROR, "Unsupported command: %s", cmd);
+		ret = -1;
+	}
+
+	return ret;
+}
+
 #endif /* ANDROID */
 
 
@@ -9247,4 +9280,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.send_tdls_mgmt = nl80211_send_tdls_mgmt,
 	.tdls_oper = nl80211_tdls_oper,
 #endif /* CONFIG_TDLS */
+#ifdef ANDROID
+	.driver_cmd = wpa_driver_nl80211_driver_cmd,
+#endif /* ANDROID */
 };
