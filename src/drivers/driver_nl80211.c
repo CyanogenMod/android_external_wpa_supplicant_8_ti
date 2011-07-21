@@ -1084,6 +1084,20 @@ static void mlme_event_assoc(struct wpa_driver_nl80211_data *drv,
 	u16 status;
 
 	mgmt = (const struct ieee80211_mgmt *) frame;
+#if (defined (CONFIG_AP) || defined (HOSTAPD) ) && defined (ANDROID_BRCM_P2P_PATCH)
+	if (drv->nlmode == NL80211_IFTYPE_AP || drv->nlmode == NL80211_IFTYPE_P2P_GO) {
+		if (len < 24 + sizeof(mgmt->u.assoc_req)) {
+			wpa_printf(MSG_DEBUG, "nl80211: Too short association event "
+			   "frame");
+			return;
+		}
+		os_memset(&event, 0, sizeof(event));
+		event.assoc_info.freq = drv->assoc_freq;
+		event.assoc_info.req_ies = (u8 *) mgmt->u.assoc_req.variable;
+		event.assoc_info.req_ies_len = len - 24 - sizeof(mgmt->u.assoc_req);
+		event.assoc_info.addr = mgmt->sa;
+	} else {
+#endif
 	if (len < 24 + sizeof(mgmt->u.assoc_resp)) {
 		wpa_printf(MSG_DEBUG, "nl80211: Too short association event "
 			   "frame");
@@ -1117,6 +1131,9 @@ static void mlme_event_assoc(struct wpa_driver_nl80211_data *drv,
 	}
 
 	event.assoc_info.freq = drv->assoc_freq;
+#if (defined (CONFIG_AP) || defined(HOSTAPD)) && defined (ANDROID_BRCM_P2P_PATCH)
+	}
+#endif
 
 	wpa_supplicant_event(drv->ctx, EVENT_ASSOC, &event);
 }
@@ -1375,6 +1392,11 @@ static void mlme_event_deauth_disassoc(struct wpa_driver_nl80211_data *drv,
 	if (type == EVENT_DISASSOC) {
 		event.disassoc_info.locally_generated =
 			!os_memcmp(mgmt->sa, drv->first_bss.addr, ETH_ALEN);
+#ifdef ANDROID_BRCM_P2P_PATCH
+		if (is_ap_interface(drv->nlmode)) {
+			event.disassoc_info.addr = mgmt->sa;
+		} else
+#endif /* ANDROID_BRCM_P2P_PATCH */
 		event.disassoc_info.addr = bssid;
 		event.disassoc_info.reason_code = reason_code;
 		if (frame + len > mgmt->u.disassoc.variable) {
@@ -1385,6 +1407,11 @@ static void mlme_event_deauth_disassoc(struct wpa_driver_nl80211_data *drv,
 	} else {
 		event.deauth_info.locally_generated =
 			!os_memcmp(mgmt->sa, drv->first_bss.addr, ETH_ALEN);
+#ifdef ANDROID_BRCM_P2P_PATCH
+		if (is_ap_interface(drv->nlmode)) {
+			event.deauth_info.addr = mgmt->sa;
+		} else
+#endif /* ANDROID_BRCM_P2P_PATCH */
 		event.deauth_info.addr = bssid;
 		event.deauth_info.reason_code = reason_code;
 		if (frame + len > mgmt->u.deauth.variable) {
@@ -5557,6 +5584,9 @@ static int wpa_driver_nl80211_set_ap(void *priv,
 	} else {
 		bss->beacon_set = 1;
 	}
+#if defined(ANDROID_BRCM_P2P_PATCH) && defined(HOSTAPD)
+	wpa_driver_nl80211_probe_req_report(priv, 1);
+#endif
 	return ret;
  nla_put_failure:
 	nlmsg_free(msg);
@@ -5594,8 +5624,15 @@ static int wpa_driver_nl80211_set_freq(struct i802_bss *bss,
 				    NL80211_CHAN_HT40PLUS);
 			break;
 		default:
+#ifdef ANDROID_BRCM_P2P_PATCH
+			/* Should be changed to HT20 as a default value because
+			 * P2P firmware does not support 11n for BCM4329 */
+			NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE,
+				    NL80211_CHAN_NO_HT);
+#else /* ANDROID_BRCM_P2P_PATCH */
 			NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE,
 				    NL80211_CHAN_HT20);
+#endif /* ANDROID_BRCM_P2P_PATCH */
 			break;
 		}
 	}
@@ -8127,8 +8164,10 @@ static int nl80211_send_frame_cmd(struct i802_bss *bss,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, bss->ifindex);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, freq);
+#ifndef ANDROID_BRCM_P2P_PATCH
 	if (wait)
 		NLA_PUT_U32(msg, NL80211_ATTR_DURATION, wait);
+#endif /* ANDROID_BRCM_P2P_PATCH */
 	if (offchanok && (drv->capa.flags & WPA_DRIVER_FLAGS_OFFCHANNEL_TX))
 		NLA_PUT_FLAG(msg, NL80211_ATTR_OFFCHANNEL_TX_OK);
 	if (no_cck)
