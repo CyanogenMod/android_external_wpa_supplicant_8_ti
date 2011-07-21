@@ -4071,6 +4071,9 @@ int wpas_p2p_invite(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 {
 	enum p2p_invite_role role;
 	u8 *bssid = NULL;
+#ifdef ANDROID_BRCM_P2P_PATCH
+	int go;
+#endif
 
 	if (ssid->mode == WPAS_MODE_P2P_GO) {
 		role = P2P_INVITE_ROLE_GO;
@@ -4079,6 +4082,19 @@ int wpas_p2p_invite(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 				   "address in invitation command");
 			return -1;
 		}
+
+#ifdef ANDROID_BRCM_P2P_PATCH
+	wpa_printf(MSG_DEBUG, "P2P: Check to see if already runnig persistent wpa_s %p grp ssid %s ssid_len %d", wpa_s, ssid->ssid, ssid->ssid_len);
+	if(wpas_get_p2p_group(wpa_s, ssid->ssid, ssid->ssid_len, &go)) {
+		wpa_printf(MSG_DEBUG, "P2P: We are already running persistent group");
+		if (go)
+			bssid = wpa_s->own_addr;
+		else
+			wpa_printf(MSG_DEBUG, "P2P: We are running persistent group but go is not set");
+	} else {
+		wpa_printf(MSG_DEBUG, "P2P: We are NOT already running persistent group");
+#endif
+
 		if (wpas_p2p_create_iface(wpa_s)) {
 			if (wpas_p2p_add_group_interface(wpa_s,
 							 WPA_IF_P2P_GO) < 0) {
@@ -4090,6 +4106,9 @@ int wpas_p2p_invite(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 			bssid = wpa_s->pending_interface_addr;
 		} else
 			bssid = wpa_s->own_addr;
+#ifdef ANDROID_BRCM_P2P_PATCH
+	}
+#endif
 	} else {
 		role = P2P_INVITE_ROLE_CLIENT;
 		peer_addr = ssid->bssid;
