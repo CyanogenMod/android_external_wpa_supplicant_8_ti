@@ -3540,6 +3540,12 @@ int wpas_p2p_group_add(struct wpa_supplicant *wpa_s, int persistent_group,
 		return -1;
 	}
 
+	if (p2p_prepare_channel(wpa_s->global->p2p, freq) < 0) {
+		wpa_printf(MSG_DEBUG, "P2P: Can't prepare channel %d MHz",
+			   freq);
+		return -1;
+	}
+
 	if (wpas_p2p_init_go_params(wpa_s, &params, freq))
 		return -1;
 	if (params.freq &&

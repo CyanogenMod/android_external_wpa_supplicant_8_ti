@@ -1696,4 +1696,6 @@ int p2p_other_scan_completed(struct p2p_data *p2p);
 
 const char * p2p_wps_method_text(enum p2p_wps_method method);
 
+int p2p_prepare_channel(struct p2p_data *p2p, unsigned int force_freq);
+
 #endif /* P2P_H */
