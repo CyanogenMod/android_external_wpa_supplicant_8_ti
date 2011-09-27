@@ -60,6 +60,9 @@
 
 #ifdef ANDROID
 #include "android_drv.h"
+
+static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
+					 size_t buf_len);
 #endif /* ANDROID */
 #ifdef CONFIG_LIBNL20
 /* libnl 2.0 compatibility code */
@@ -8999,6 +9002,15 @@ nla_put_failure:
 static int nl80211_set_p2p_powersave(void *priv, int legacy_ps, int opp_ps,
 				     int ctwindow)
 {
+#ifdef ANDROID_BRCM_P2P_PATCH
+	char buf[MAX_DRV_CMD_SIZE];
+
+	memset(buf, 0, sizeof(buf));
+	wpa_printf(MSG_DEBUG, "%s: Entry", __func__);
+	os_snprintf(buf, sizeof(buf), "P2P_SET_PS %d %d %d", legacy_ps, opp_ps,
+		    ctwindow);
+	return wpa_driver_nl80211_driver_cmd(priv, buf, buf, strlen(buf) + 1);
+#else /* ANDROID_BRCM_P2P_PATCH */
 	struct i802_bss *bss = priv;
 
 	wpa_printf(MSG_DEBUG, "nl80211: set_p2p_powersave (legacy_ps=%d "
@@ -9013,6 +9025,7 @@ static int nl80211_set_p2p_powersave(void *priv, int legacy_ps, int opp_ps,
 		return -1; /* Not yet supported */
 
 	return nl80211_set_power_save(bss, legacy_ps);
+#endif /* ANDROID_BRCM_P2P_PATCH */
 }
 
 
@@ -9365,6 +9378,68 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 	return ret;
 }
 
+#ifdef ANDROID_BRCM_P2P_PATCH
+
+static int wpa_driver_set_p2p_noa(void *priv, u8 count, int start,
+				  int duration)
+{
+	char buf[MAX_DRV_CMD_SIZE];
+
+	memset(buf, 0, sizeof(buf));
+	wpa_printf(MSG_DEBUG, "%s: Entry", __func__);
+	os_snprintf(buf, sizeof(buf), "P2P_SET_NOA %d %d %d", count, start,
+		    duration);
+	return wpa_driver_nl80211_driver_cmd(priv, buf, buf, strlen(buf) + 1);
+}
+
+
+static int wpa_driver_set_ap_wps_p2p_ie(void *priv,
+					const struct wpabuf *beacon,
+					const struct wpabuf *proberesp,
+					const struct wpabuf *assocresp)
+{
+	char buf[MAX_WPSP2PIE_CMD_SIZE];
+	struct wpabuf *ap_wps_p2p_ie = NULL;
+	char *_cmd = "SET_AP_WPS_P2P_IE";
+	char *pbuf;
+	int ret = 0;
+	int i;
+	struct cmd_desc {
+		int cmd;
+		const struct wpabuf *src;
+	} cmd_arr[] = {
+		{0x1, beacon},
+		{0x2, proberesp},
+		{0x4, assocresp},
+		{-1, NULL}
+	};
+
+	wpa_printf(MSG_DEBUG, "%s: Entry", __func__);
+	for (i = 0; cmd_arr[i].cmd != -1; i++) {
+		os_memset(buf, 0, sizeof(buf));
+		pbuf = buf;
+		pbuf += sprintf(pbuf, "%s %d", _cmd, cmd_arr[i].cmd);
+		*pbuf++ = '\0';
+		ap_wps_p2p_ie = cmd_arr[i].src ?
+			wpabuf_dup(cmd_arr[i].src) : NULL;
+		if (ap_wps_p2p_ie) {
+			os_memcpy(pbuf, wpabuf_head(ap_wps_p2p_ie),
+				  wpabuf_len(ap_wps_p2p_ie));
+			ret = wpa_driver_nl80211_driver_cmd(
+				priv, buf, buf,
+				os_strlen(_cmd) + 3 +
+				wpabuf_len(ap_wps_p2p_ie));
+			wpabuf_free(ap_wps_p2p_ie);
+			if (ret < 0)
+				break;
+		}
+	}
+
+	return ret;
+}
+
+#endif /* ANDROID_BRCM_P2P_PATCH */
+
 #endif /* ANDROID */
 
 
@@ -9446,6 +9521,10 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.send_tdls_mgmt = nl80211_send_tdls_mgmt,
 	.tdls_oper = nl80211_tdls_oper,
 #endif /* CONFIG_TDLS */
+#ifdef ANDROID_BRCM_P2P_PATCH
+	.set_noa = wpa_driver_set_p2p_noa,
+	.set_ap_wps_ie = wpa_driver_set_ap_wps_p2p_ie,
+#endif /* ANDROID_BRCM_P2P_PATCH */
 #ifdef ANDROID
 	.driver_cmd = wpa_driver_nl80211_driver_cmd,
 #endif /* ANDROID */
