@@ -309,6 +309,11 @@ static int android_pno_start(struct i802_bss *bss,
 			     struct wpa_driver_scan_params *params);
 static int android_pno_stop(struct i802_bss *bss);
 #endif /* ANDROID */
+#ifdef ANDROID_BRCM_P2P_PATCH
+static void mlme_event_deauth_disassoc(struct wpa_driver_nl80211_data *drv,
+				  enum wpa_event_type type,
+				  const u8 *frame, size_t len);
+#endif /* ANDROID_BRCM_P2P_PATCH */
 
 #ifdef HOSTAPD
 static void add_ifidx(struct wpa_driver_nl80211_data *drv, int ifidx);
@@ -1310,6 +1315,14 @@ static void mlme_event_mgmt(struct wpa_driver_nl80211_data *drv,
 		event.rx_action.data = &mgmt->u.action.category + 1;
 		event.rx_action.len = frame + len - event.rx_action.data;
 		wpa_supplicant_event(drv->ctx, EVENT_RX_ACTION, &event);
+#ifdef ANDROID_BRCM_P2P_PATCH
+	} else if (stype == WLAN_FC_STYPE_ASSOC_REQ) {
+		mlme_event_assoc(drv, frame, len);
+	} else if (stype == WLAN_FC_STYPE_DISASSOC) {
+		mlme_event_deauth_disassoc(drv, EVENT_DISASSOC, frame, len);
+	} else if (stype == WLAN_FC_STYPE_DEAUTH) {
+		mlme_event_deauth_disassoc(drv, EVENT_DEAUTH, frame, len);
+#endif /* ANDROID_BRCM_P2P_PATCH */
 	} else {
 		event.rx_mgmt.frame = frame;
 		event.rx_mgmt.frame_len = len;
