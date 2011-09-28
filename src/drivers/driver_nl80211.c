@@ -9394,7 +9394,8 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 			ret = 0;
 			if ((os_strcasecmp(cmd, "LINKSPEED") == 0) ||
 			    (os_strcasecmp(cmd, "RSSI") == 0) ||
-			    (os_strcasecmp(cmd, "GETBAND") == 0))
+			    (os_strcasecmp(cmd, "GETBAND") == 0) ||
+			    (os_strcasecmp(cmd, "P2P_GET_NOA") == 0))
 				ret = strlen(buf);
 
 			wpa_printf(MSG_DEBUG, "%s %s len = %d, %d", __func__,
@@ -9417,6 +9418,25 @@ static int wpa_driver_set_p2p_noa(void *priv, u8 count, int start,
 	os_snprintf(buf, sizeof(buf), "P2P_SET_NOA %d %d %d", count, start,
 		    duration);
 	return wpa_driver_nl80211_driver_cmd(priv, buf, buf, strlen(buf) + 1);
+}
+
+
+static int wpa_driver_get_p2p_noa(void *priv, u8 *buf, size_t len)
+{
+	char rbuf[MAX_DRV_CMD_SIZE];
+	char *cmd = "P2P_GET_NOA";
+	int ret;
+
+	wpa_printf(MSG_DEBUG, "%s: Entry", __func__);
+	os_memset(buf, 0, len);
+	ret = wpa_driver_nl80211_driver_cmd(priv, cmd, rbuf, sizeof(rbuf));
+	if (ret <= 0)
+		return 0;
+	ret >>= 1;
+	if (ret > (int)len)
+		ret = (int)len;
+	hexstr2bin(rbuf, buf, ret);
+	return ret;
 }
 
 
@@ -9549,6 +9569,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.tdls_oper = nl80211_tdls_oper,
 #endif /* CONFIG_TDLS */
 #ifdef ANDROID_BRCM_P2P_PATCH
+	.get_noa = wpa_driver_get_p2p_noa,
 	.set_noa = wpa_driver_set_p2p_noa,
 	.set_ap_wps_ie = wpa_driver_set_ap_wps_p2p_ie,
 #endif /* ANDROID_BRCM_P2P_PATCH */
