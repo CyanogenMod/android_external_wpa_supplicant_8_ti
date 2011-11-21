@@ -97,6 +97,8 @@ int hostapd_sta_assoc(struct hostapd_data *hapd, const u8 *addr,
 		      int reassoc, u16 status, const u8 *ie, size_t len);
 int hostapd_add_tspec(struct hostapd_data *hapd, const u8 *addr,
 		      u8 *tspec_ie, size_t tspec_ielen);
+int hostapd_channel_switch(struct hostapd_data *hapd, int freq, int flags,
+			   u8 tx_block, u8 post_switch_block_tx);
 
 
 #include "drivers/driver.h"

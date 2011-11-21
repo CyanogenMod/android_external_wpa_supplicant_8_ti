@@ -898,6 +898,16 @@ struct hostapd_freq_params {
 				 * enabled, secondary channel above primary */
 };
 
+struct hostapd_channel_switch {
+	int freq;
+	int tx_block;			/* immediately block the tx on the
+					 * operational channel
+					 * (prior channel switch) */
+	int post_switch_block_tx;	/* block tx on the target ch (after
+					 * channel switch) */
+	int ch_switch_count;
+};
+
 enum wpa_driver_if_type {
 	/**
 	 * WPA_IF_STATION - Station mode interface
@@ -2587,6 +2597,15 @@ struct wpa_driver_ops {
 	 * Returns: 0 on success, -1 on failure
 	 */
 	 int (*driver_cmd)(void *priv, char *cmd, char *buf, size_t buf_len);
+
+	/**
+	 * hapd_channel_switch - Perform an AP channel switch
+	 * @priv: Private driver interface data
+	 * @params: Channels switch parameters
+	 * Returns: 0 on success, -1 on failure
+	 */
+	int (*hapd_channel_switch)(void *priv,
+				   struct hostapd_channel_switch *params);
 };
 
 
