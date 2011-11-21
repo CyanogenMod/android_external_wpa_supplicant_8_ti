@@ -1217,13 +1217,14 @@ static void mlme_event_disconnect(struct wpa_driver_nl80211_data *drv,
 
 
 static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
-				 struct nlattr *freq, struct nlattr *type)
+				 struct nlattr *freq, struct nlattr *type,
+				 enum wpa_event_type event)
 {
 	union wpa_event_data data;
 	int ht_enabled = 1;
 	int chan_offset = 0;
 
-	wpa_printf(MSG_DEBUG, "nl80211: Channel switch event");
+	wpa_printf(MSG_INFO, "nl80211: Channel switch event");
 
 	if (!freq || !type)
 		return;
@@ -1246,7 +1247,7 @@ static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
 	data.ch_switch.ht_enabled = ht_enabled;
 	data.ch_switch.ch_offset = chan_offset;
 
-	wpa_supplicant_event(drv->ctx, EVENT_CH_SWITCH, &data);
+	wpa_supplicant_event(drv->ctx, event, &data);
 }
 
 
@@ -2110,6 +2111,22 @@ static void nl80211_client_probe_event(struct wpa_driver_nl80211_data *drv,
 	wpa_supplicant_event(drv->ctx, EVENT_DRIVER_CLIENT_POLL_OK, &data);
 }
 
+static void nl80211_req_ch_sw_event(struct wpa_driver_nl80211_data *drv,
+				    struct nlattr **tb)
+{
+	union wpa_event_data data;
+
+	if (!tb[NL80211_ATTR_WIPHY_FREQ])
+		return;
+
+	os_memset(&data, 0, sizeof(data));
+	data.ch_switch.freq = nla_get_u16(tb[NL80211_ATTR_WIPHY_FREQ]);
+
+	wpa_printf(MSG_DEBUG, "nl80211: Requst to switch to %d freq",
+		   data.ch_switch.freq);
+
+	wpa_supplicant_event(drv->ctx, EVENT_REQ_CH_SW, &data);
+}
 
 static void nl80211_spurious_frame(struct i802_bss *bss, struct nlattr **tb,
 				   int wds)
@@ -2196,7 +2213,11 @@ static void do_process_drv_event(struct wpa_driver_nl80211_data *drv,
 		break;
 	case NL80211_CMD_CH_SWITCH_NOTIFY:
 		mlme_event_ch_switch(drv, tb[NL80211_ATTR_WIPHY_FREQ],
-				     tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+				     tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE],
+				     EVENT_CH_SWITCH);
+		break;
+	case NL80211_CMD_REQ_CH_SW:
+		nl80211_req_ch_sw_event(drv, tb);
 		break;
 	case NL80211_CMD_DISCONNECT:
 		mlme_event_disconnect(drv, tb[NL80211_ATTR_REASON_CODE],
@@ -9466,6 +9487,49 @@ static int nl80211_set_p2p_powersave(void *priv, int legacy_ps, int opp_ps,
 }
 
 
+static int nl80211_ap_channel_switch(void *priv,
+				     struct hostapd_channel_switch *params)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg;
+	int ret;
+
+	wpa_printf(MSG_INFO, "nl80211: Channel switch, "
+		   "ch_switch_count = %d, tx_block = %d, "
+		   "freq = %d, post_switch_block_tx = %d.",
+		   params->ch_switch_count, params->tx_block,
+		   params->freq, params->post_switch_block_tx);
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -1;
+
+	nl80211_cmd(bss->drv, msg, 0, NL80211_CMD_AP_CH_SWITCH);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, drv->ifindex);
+	NLA_PUT_U32(msg, NL80211_ATTR_CH_SWITCH_COUNT, params->ch_switch_count);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, params->freq);
+
+	/* only HT20 is supported at this point */
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT20);
+
+	if (params->tx_block)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_CH_SWITCH_BLOCK_TX);
+
+	if (params->post_switch_block_tx)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_CH_SWITCH_POST_BLOCK_TX);
+
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	if (ret == 0) {
+		bss->freq = params->freq;
+		return 0;
+	}
+	wpa_printf(MSG_DEBUG, "nl80211: Failed to channel switch: "
+		   "%d (%s)", ret, strerror(-ret));
+nla_put_failure:
+	return -1;
+}
 #ifdef CONFIG_TDLS
 
 static int nl80211_send_tdls_mgmt(void *priv, const u8 *dst, u8 action_code,
@@ -9891,6 +9955,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.set_rekey_info = nl80211_set_rekey_info,
 	.poll_client = nl80211_poll_client,
 	.set_p2p_powersave = nl80211_set_p2p_powersave,
+	.hapd_channel_switch = nl80211_ap_channel_switch,
 #ifdef CONFIG_TDLS
 	.send_tdls_mgmt = nl80211_send_tdls_mgmt,
 	.tdls_oper = nl80211_tdls_oper,
