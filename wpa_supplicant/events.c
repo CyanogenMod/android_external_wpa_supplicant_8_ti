@@ -2556,6 +2556,12 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 				  data->ch_switch.ch_offset);
 #endif /* CONFIG_AP */
 		break;
+	case EVENT_REQ_CH_SW:
+		if (!data)
+			break;
+		ieee802_11_start_channel_switch(wpa_s->ap_iface->bss[0],
+						data->ch_switch.freq, FALSE);
+		break;
 	case EVENT_RX_MGMT: {
 		u16 fc, stype;
 		const struct ieee80211_mgmt *mgmt;

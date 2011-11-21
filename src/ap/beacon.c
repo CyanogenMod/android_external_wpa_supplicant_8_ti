@@ -33,6 +33,7 @@
 #include "p2p_hostapd.h"
 #include "ap_drv_ops.h"
 #include "beacon.h"
+#include "hw_features.h"
 
 
 #ifdef NEED_AP_MLME
@@ -169,6 +170,27 @@ static u8 * hostapd_eid_country(struct hostapd_data *hapd, u8 *eid,
 	eid[1] = (pos - eid) - 2;
 
 	return pos;
+}
+
+static u8 *hostapd_eid_csa(struct hostapd_data *hapd, u8 *eid)
+{
+	int current_ch_flag = 0;
+
+	if (!hapd->next_channel)
+		return eid;
+
+	current_ch_flag = hostapd_hw_get_channel_flag(hapd,
+						      hapd->iconf->channel);
+
+	*eid++ = WLAN_EID_CHANNEL_SWITCH;
+	*eid++ = 3; /* IE length */
+	/* STAs should cease transmit if the switch is due to radar */
+	*eid++ = (current_ch_flag & HOSTAPD_CHAN_RADAR) ? 1 : 0;
+	*eid++ = (u8)hapd->next_channel->chan;
+	*eid++ = (hapd->iconf->channel_switch_count > hapd->conf->dtim_period) ?
+		(u8)hapd->iconf->channel_switch_count :
+		hapd->conf->dtim_period * 2;
+	return eid;
 }
 
 
@@ -572,6 +594,9 @@ void ieee802_11_set_beacon(struct hostapd_data *hapd)
 
 	tailpos = hostapd_eid_country(hapd, tailpos,
 				      tail + BEACON_TAIL_BUF_SIZE - tailpos);
+
+	/* Channel Switch Announcement */
+	tailpos = hostapd_eid_csa(hapd, tailpos);
 
 	/* ERP Information element */
 	tailpos = hostapd_eid_erp_info(hapd, tailpos);

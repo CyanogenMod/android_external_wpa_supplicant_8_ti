@@ -162,6 +162,8 @@ struct hostapd_data {
 	void (*setup_complete_cb)(void *ctx);
 	void *setup_complete_cb_ctx;
 
+	struct hostapd_channel_data *next_channel;
+
 #ifdef CONFIG_P2P
 	struct p2p_data *p2p;
 	struct p2p_group *p2p_group;
@@ -271,6 +273,9 @@ void hostapd_interface_deinit(struct hostapd_iface *iface);
 void hostapd_interface_free(struct hostapd_iface *iface);
 void hostapd_new_assoc_sta(struct hostapd_data *hapd, struct sta_info *sta,
 			   int reassoc);
+struct
+hostapd_channel_data *hostapd_get_valid_channel(struct hostapd_data *hapd,
+						int req_freq);
 
 /* utils.c */
 int hostapd_register_probereq_cb(struct hostapd_data *hapd,
