@@ -2718,7 +2718,7 @@ static int wpa_driver_wext_driver_cmd(void *priv, char *cmd, char *buf,
 	}
 
 	if (os_strcasecmp(cmd, "RSSI-APPROX") == 0) {
-		os_strncpy(cmd, "RSSI", MAX_DRV_CMD_SIZE);
+		os_strncpy(cmd, RSSI_CMD, MAX_DRV_CMD_SIZE);
 	} else if (os_strncasecmp(cmd, "SCAN-CHANNELS", 13) == 0) {
 		int no_of_chan = atoi(cmd + 13);
 		os_snprintf(cmd, MAX_DRV_CMD_SIZE, "COUNTRY %s",
@@ -2764,8 +2764,8 @@ static int wpa_driver_wext_driver_cmd(void *priv, char *cmd, char *buf,
 	} else {
 		drv->errors = 0;
 		ret = 0;
-		if ((os_strcasecmp(cmd, "RSSI") == 0) ||
-		    (os_strcasecmp(cmd, "LINKSPEED") == 0) ||
+		if ((os_strcasecmp(cmd, RSSI_CMD) == 0) ||
+		    (os_strcasecmp(cmd, LINKSPEED_CMD) == 0) ||
 		    (os_strcasecmp(cmd, "MACADDR") == 0) ||
 		    (os_strcasecmp(cmd, "GETPOWER") == 0) ||
 		    (os_strcasecmp(cmd, "GETBAND") == 0)) {
@@ -2797,6 +2797,34 @@ static int wpa_driver_wext_driver_cmd(void *priv, char *cmd, char *buf,
 	return ret;
 }
 
+
+static int wpa_driver_signal_poll(void *priv, struct wpa_signal_info *si)
+{
+	char buf[MAX_DRV_CMD_SIZE];
+	struct wpa_driver_wext_data *drv = priv;
+	char *prssi;
+	int res;
+
+	os_memset(si, 0, sizeof(*si));
+	res = wpa_driver_wext_driver_cmd(priv, RSSI_CMD, buf, sizeof(buf));
+	/* Answer: SSID rssi -Val */
+	if (res < 0)
+		return res;
+	prssi = strcasestr(buf, RSSI_CMD);
+	if (!prssi)
+		return -1;
+	si->current_signal = atoi(prssi + strlen(RSSI_CMD) + 1);
+
+	res = wpa_driver_wext_driver_cmd(priv, LINKSPEED_CMD, buf,
+					 sizeof(buf));
+	/* Answer: LinkSpeed Val */
+	if (res < 0)
+		return res;
+	si->current_txrate = atoi(buf + strlen(LINKSPEED_CMD) + 1) * 1000;
+
+	return 0;
+}
+
 #endif /* ANDROID */
 
 
@@ -2821,6 +2849,7 @@ const struct wpa_driver_ops wpa_driver_wext_ops = {
 	.set_operstate = wpa_driver_wext_set_operstate,
 	.get_radio_name = wext_get_radio_name,
 #ifdef ANDROID
+	.signal_poll = wpa_driver_signal_poll,
 	.driver_cmd = wpa_driver_wext_driver_cmd,
 	.sched_scan = wext_sched_scan,
 	.stop_sched_scan = wext_stop_sched_scan,
