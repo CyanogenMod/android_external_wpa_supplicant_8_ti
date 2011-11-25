@@ -33,6 +33,11 @@
 
 #ifdef ANDROID
 #include "android_drv.h"
+
+#define WEXT_CSCAN_AMOUNT 9
+
+static int wpa_driver_wext_combo_scan(void *priv,
+				      struct wpa_driver_scan_params *params);
 #endif /* ANDROID */
 
 static int wpa_driver_wext_flush_pmkid(void *priv);
@@ -1026,6 +1031,13 @@ int wpa_driver_wext_scan(void *priv, struct wpa_driver_scan_params *params)
 	const u8 *ssid = params->ssids[0].ssid;
 	size_t ssid_len = params->ssids[0].ssid_len;
 
+#ifdef ANDROID
+	if (drv->capa.max_scan_ssids > 1) {
+		ret = wpa_driver_wext_combo_scan(priv, params);
+		goto scan_out;
+	}
+#endif /* ANDROID */
+
 	if (ssid_len > IW_ESSID_MAX_SIZE) {
 		wpa_printf(MSG_DEBUG, "%s: too long SSID (%lu)",
 			   __FUNCTION__, (unsigned long) ssid_len);
@@ -1051,6 +1063,9 @@ int wpa_driver_wext_scan(void *priv, struct wpa_driver_scan_params *params)
 		ret = -1;
 	}
 
+#ifdef ANDROID
+scan_out:
+#endif /* ANDROID */
 	/* Not all drivers generate "scan completed" wireless event, so try to
 	 * read results after a timeout. */
 	timeout = 10;
@@ -1585,7 +1600,11 @@ static int wpa_driver_wext_get_range(void *priv)
 		drv->capa.auth = WPA_DRIVER_AUTH_OPEN |
 			WPA_DRIVER_AUTH_SHARED |
 			WPA_DRIVER_AUTH_LEAP;
+#ifdef ANDROID
+		drv->capa.max_scan_ssids = WEXT_CSCAN_AMOUNT;
+#else /* ANDROID */
 		drv->capa.max_scan_ssids = 1;
+#endif /* ANDROID */
 
 		wpa_printf(MSG_DEBUG, "  capabilities: key_mgmt 0x%x enc 0x%x "
 			   "flags 0x%x",
@@ -2353,6 +2372,90 @@ static const char * wext_get_radio_name(void *priv)
 
 
 #ifdef ANDROID
+
+#define WPA_DRIVER_WEXT_WAIT_US		400000
+#define WEXT_CSCAN_BUF_LEN		360
+#define WEXT_CSCAN_HEADER		"CSCAN S\x01\x00\x00S\x00"
+#define WEXT_CSCAN_HEADER_SIZE		12
+#define WEXT_CSCAN_SSID_SECTION		'S'
+#define WEXT_CSCAN_CHANNEL_SECTION	'C'
+#define WEXT_CSCAN_NPROBE_SECTION	'N'
+#define WEXT_CSCAN_ACTV_DWELL_SECTION	'A'
+#define WEXT_CSCAN_PASV_DWELL_SECTION	'P'
+#define WEXT_CSCAN_HOME_DWELL_SECTION	'H'
+#define WEXT_CSCAN_TYPE_SECTION		'T'
+#define WEXT_CSCAN_TYPE_DEFAULT		0
+#define WEXT_CSCAN_TYPE_PASSIVE		1
+#define WEXT_CSCAN_PASV_DWELL_TIME	130
+#define WEXT_CSCAN_PASV_DWELL_TIME_DEF	250
+#define WEXT_CSCAN_PASV_DWELL_TIME_MAX	3000
+#define WEXT_CSCAN_HOME_DWELL_TIME	130
+
+/**
+ * wpa_driver_wext_combo_scan - Request the driver to initiate combo scan
+ * @priv: Pointer to private wext data from wpa_driver_wext_init()
+ * @params: Scan parameters
+ * Returns: 0 on success, -1 on failure
+ */
+static int wpa_driver_wext_combo_scan(void *priv,
+				      struct wpa_driver_scan_params *params)
+{
+	char buf[WEXT_CSCAN_BUF_LEN];
+	struct wpa_driver_wext_data *drv = priv;
+	struct iwreq iwr;
+	int ret, bp;
+	unsigned i;
+
+	if (!drv->driver_is_started) {
+		wpa_printf(MSG_DEBUG, "%s: Driver stopped", __func__);
+		return 0;
+	}
+
+	wpa_printf(MSG_DEBUG, "%s: Start", __func__);
+
+	/* Set list of SSIDs */
+	bp = WEXT_CSCAN_HEADER_SIZE;
+	os_memcpy(buf, WEXT_CSCAN_HEADER, bp);
+	for(i=0; i < params->num_ssids; i++) {
+		if ((bp + IW_ESSID_MAX_SIZE + 10) >= (int) sizeof(buf))
+			break;
+		wpa_printf(MSG_DEBUG, "For Scan: %s", params->ssids[i].ssid);
+		buf[bp++] = WEXT_CSCAN_SSID_SECTION;
+		buf[bp++] = params->ssids[i].ssid_len;
+		os_memcpy(&buf[bp], params->ssids[i].ssid,
+			  params->ssids[i].ssid_len);
+		bp += params->ssids[i].ssid_len;
+	}
+
+	/* Set list of channels */
+	buf[bp++] = WEXT_CSCAN_CHANNEL_SECTION;
+	buf[bp++] = 0;
+
+	/* Set passive dwell time (default is 250) */
+	buf[bp++] = WEXT_CSCAN_PASV_DWELL_SECTION;
+	buf[bp++] = (u8) WEXT_CSCAN_PASV_DWELL_TIME;
+	buf[bp++] = (u8) (WEXT_CSCAN_PASV_DWELL_TIME >> 8);
+
+	/* Set home dwell time (default is 40) */
+	buf[bp++] = WEXT_CSCAN_HOME_DWELL_SECTION;
+	buf[bp++] = (u8) WEXT_CSCAN_HOME_DWELL_TIME;
+	buf[bp++] = (u8) (WEXT_CSCAN_HOME_DWELL_TIME >> 8);
+
+	os_memset(&iwr, 0, sizeof(iwr));
+	os_strncpy(iwr.ifr_name, drv->ifname, IFNAMSIZ);
+	iwr.u.data.pointer = buf;
+	iwr.u.data.length = bp;
+
+	if ((ret = ioctl(drv->ioctl_sock, SIOCSIWPRIV, &iwr)) < 0) {
+		if (!drv->bgscan_enabled)
+			wpa_printf(MSG_ERROR, "ioctl[SIOCSIWPRIV] (cscan): %d",
+				   ret);
+		else
+			ret = 0; /* Hide error in case of bg scan */
+	}
+	return ret;
+}
+
 
 #define WEXT_NUMBER_SCAN_CHANNELS_FCC	11
 #define WEXT_NUMBER_SCAN_CHANNELS_ETSI	13
