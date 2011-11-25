@@ -9056,6 +9056,64 @@ static void wpa_driver_send_hang_msg(struct wpa_driver_nl80211_data *drv)
 }
 
 
+#define WPA_PS_ENABLED		0
+#define WPA_PS_DISABLED		1
+
+static int wpa_driver_set_power_save(void *priv, int state)
+{
+	return nl80211_set_power_save(priv, state == WPA_PS_ENABLED);
+}
+
+
+static int get_power_mode_handler(struct nl_msg *msg, void *arg)
+{
+	struct nlattr *tb[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	int *state = arg;
+
+	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (!tb[NL80211_ATTR_PS_STATE])
+		return NL_SKIP;
+
+	if (state) {
+		int s = (int) nla_get_u32(tb[NL80211_ATTR_PS_STATE]);
+		wpa_printf(MSG_DEBUG, "nl80211: Get power mode = %d", s);
+		*state = (s == NL80211_PS_ENABLED) ?
+			WPA_PS_ENABLED : WPA_PS_DISABLED;
+	}
+
+	return NL_SKIP;
+}
+
+
+static int wpa_driver_get_power_save(void *priv, int *state)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg;
+	int ret = -1;
+	enum nl80211_ps_state ps_state;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -1;
+
+	nl80211_cmd(drv, msg, 0, NL80211_CMD_GET_POWER_SAVE);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, bss->ifindex);
+
+	ret = send_and_recv_msgs(drv, msg, get_power_mode_handler, state);
+	msg = NULL;
+	if (ret < 0)
+		wpa_printf(MSG_ERROR, "nl80211: Get power mode fail: %d", ret);
+nla_put_failure:
+	nlmsg_free(msg);
+	return ret;
+}
+
+
 static int android_priv_cmd(struct i802_bss *bss, const char *cmd)
 {
 	struct wpa_driver_nl80211_data *drv = bss->drv;
@@ -9191,6 +9249,19 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 					  MAC2STR(macaddr));
 	} else if (os_strcasecmp(cmd, "RELOAD") == 0) {
 		wpa_msg(drv->ctx, MSG_INFO, WPA_EVENT_DRIVER_STATE "HANGED");
+	} else if (os_strncasecmp(cmd, "POWERMODE ", 10) == 0) {
+		int state = atoi(cmd + 10);
+		ret = wpa_driver_set_power_save(priv, state);
+		if (ret < 0)
+			wpa_driver_send_hang_msg(drv);
+		else
+			drv_errors = 0;
+	} else if (os_strncasecmp(cmd, "GETPOWER", 8) == 0) {
+		int state = -1;
+		ret = wpa_driver_get_power_save(priv, &state);
+		if (!ret && (state != -1))
+			ret = os_snprintf(buf, buf_len, "POWERMODE = %d\n",
+					  state);
 	} else {
 		wpa_printf(MSG_ERROR, "Unsupported command: %s", cmd);
 		ret = -1;
