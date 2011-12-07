@@ -123,6 +123,11 @@ struct hostapd_data {
 	int beacon_set_done;
 	struct wpabuf *wps_beacon_ie;
 	struct wpabuf *wps_probe_resp_ie;
+
+	struct wpabuf *pending_eapol_rx;
+	struct os_time pending_eapol_rx_time;
+	u8 pending_eapol_rx_src[ETH_ALEN];
+
 #ifdef CONFIG_WPS
 	unsigned int ap_pin_failures;
 	unsigned int ap_pin_failures_consecutive;
