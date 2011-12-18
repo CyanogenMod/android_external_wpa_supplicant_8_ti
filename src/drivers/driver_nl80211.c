@@ -8952,6 +8952,7 @@ nl80211_self_filter_get_pattern_handler(u8 *buf, int buflen, void *arg)
 }
 
 static struct rx_filter rx_filters[] = {
+	/* ID 0 */
 	{.name = "self",
 	 .pattern = {},
 	 .pattern_len = 6,
@@ -8960,6 +8961,7 @@ static struct rx_filter rx_filters[] = {
 	 .get_pattern_handler = nl80211_self_filter_get_pattern_handler,
 	},
 
+	/* ID 1 */
 	{.name = "bcast",
 	 .pattern = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF},
 	 .pattern_len = 6,
@@ -8967,6 +8969,7 @@ static struct rx_filter rx_filters[] = {
 	 .mask_len = 1,
 	},
 
+	/* ID 2 */
 	{.name = "ipv4mc",
 	 .pattern = {0x01,0x00,0x5E},
 	 .pattern_len = 3,
@@ -8974,6 +8977,7 @@ static struct rx_filter rx_filters[] = {
 	 .mask_len = 1,
 	},
 
+	/* ID 3 */
 	{.name = "ipv6mc",
 	 .pattern = {0x33,0x33},
 	 .pattern_len = 2,
@@ -8981,27 +8985,45 @@ static struct rx_filter rx_filters[] = {
 	 .mask_len = 1,
 	},
 
-	{.name = "arp",
-	 .pattern = {0   , 0   , 0   , 0   , 0   , 0   , 0   , 0   ,
-		     0   , 0   , 0   , 0   , 0x08, 0x06},
-	 .pattern_len = 14,
-	 .mask = { 0,                                 /* OCTET 1 */
-		   BIT(4) | BIT(5) },                 /* OCTET 2 */
-	 .mask_len = 2,
-	},
-
+	/* ID 4 */
 	{.name = "dhcp",
-	 .pattern = {0   , 0   , 0   , 0   , 0   , 0   , 0   , 0   ,
+	 .pattern = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0   , 0   ,
 		     0   , 0   , 0   , 0   , 0   , 0   , 0x45, 0   ,
 		     0   , 0   , 0   , 0   , 0   , 0   , 0   , 0x11,
 		     0   , 0   , 0   , 0   , 0   , 0   , 0   , 0   ,
 		     0   , 0   , 0   , 0   , 0x00, 0x44},
 	 .pattern_len = 38,
-	 .mask = { 0,                                 /* OCTET 1 */
-		   BIT(6),                            /* OCTET 2 */
-		   BIT(7),                            /* OCTET 3 */
-		   0,                                 /* OCTET 4 */
-		   BIT(4) | BIT(5) },                 /* OCTET 5 */
+	 .mask = { BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5),
+		   BIT(6),                               /* OCTET 2 */
+		   BIT(7),                               /* OCTET 3 */
+		   0,                                    /* OCTET 4 */
+		   BIT(4) | BIT(5) },                    /* OCTET 5 */
+	 .mask_len = 5,
+	},
+
+	/* ID 5 */
+	{.name = "arp",
+	 .pattern = {0   , 0   , 0   , 0   , 0   , 0   , 0   , 0   ,
+		     0   , 0   , 0   , 0   , 0x08, 0x06},
+	 .pattern_len = 14,
+	 .mask = { 0,                                    /* OCTET 1 */
+		   BIT(4) | BIT(5) },                    /* OCTET 2 */
+	 .mask_len = 2,
+	},
+
+	/* ID 6 */
+	{.name = "ssdp",
+	 .pattern = {0x01, 0x00, 0x5E, 0   , 0   , 0   , 0   , 0   ,
+		     0   , 0   , 0   , 0   , 0   , 0   , 0x45, 0   ,
+		     0   , 0   , 0   , 0   , 0   , 0   , 0   , 0x11,
+		     0   , 0   , 0   , 0   , 0   , 0   , 0xEF, 0xFF,
+		     0xFF, 0xFA, 0   , 0   , 0x07, 0x6C},
+	 .pattern_len = 38,
+	 .mask = { BIT(0) | BIT(1) | BIT(2),             /* OCTET 1 */
+		   BIT(6),                               /* OCTET 2 */
+		   BIT(7),                               /* OCTET 3 */
+		   BIT(6) | BIT(7),                      /* OCTET 4 */
+		   BIT(0) | BIT(1) | BIT(4) | BIT(5) },  /* OCTET 5 */
 	 .mask_len = 5,
 	},
 };
