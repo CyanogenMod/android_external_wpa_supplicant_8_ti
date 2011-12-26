@@ -3182,6 +3182,13 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED)
 			break;
 
+		if (wpa_s->override_sched_scan) {
+			if (wpa_supplicant_req_sched_scan(wpa_s))
+				wpa_supplicant_req_new_scan(wpa_s,
+						    wpa_s->scan_interval, 0);
+			break;
+		}
+
 		/*
 		 * If we timed out, start a new sched scan to continue
 		 * searching for more SSIDs.

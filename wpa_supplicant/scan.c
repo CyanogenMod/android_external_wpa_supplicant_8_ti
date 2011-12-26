@@ -274,22 +274,6 @@ wpa_supplicant_start_sched_scan(struct wpa_supplicant *wpa_s,
 	return ret;
 }
 
-
-static int wpa_supplicant_stop_sched_scan(struct wpa_supplicant *wpa_s)
-{
-	int ret;
-
-	ret = wpa_drv_stop_sched_scan(wpa_s);
-	if (ret) {
-		wpa_dbg(wpa_s, MSG_DEBUG, "stopping sched_scan failed!");
-		/* TODO: what to do if stopping fails? */
-		return -1;
-	}
-
-	return ret;
-}
-
-
 static struct wpa_driver_scan_filter *
 wpa_supplicant_build_filter_ssids(struct wpa_config *conf, size_t *num_ssids)
 {
@@ -989,9 +973,17 @@ int wpa_supplicant_req_sched_scan(struct wpa_supplicant *wpa_s)
 		return -1;
 
 	if (wpa_s->sched_scanning) {
-		wpa_dbg(wpa_s, MSG_DEBUG, "Already sched scanning");
-		return 0;
+		wpa_dbg(wpa_s, MSG_DEBUG,
+			"Restarting sched scan with new parameters");
+		ret = wpa_supplicant_cancel_sched_scan(wpa_s);
+		if (!ret) {
+			wpa_s->override_sched_scan = 1;
+			return 0;
+		}
+		/* If failed probably no scan running so continue */
 	}
+
+	wpa_s->override_sched_scan = 0;
 
 	if (!wpa_supplicant_enabled_networks(wpa_s)) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "No enabled networks -"
@@ -1233,14 +1225,17 @@ void wpa_supplicant_cancel_delayed_sched_scan(struct wpa_supplicant *wpa_s)
  *
  * This function is used to stop a periodic scheduled scan.
  */
-void wpa_supplicant_cancel_sched_scan(struct wpa_supplicant *wpa_s)
+int wpa_supplicant_cancel_sched_scan(struct wpa_supplicant *wpa_s)
 {
-	if (!wpa_s->sched_scanning)
-		return;
+	if (!wpa_s->sched_scanning) {
+		wpa_dbg(wpa_s, MSG_DEBUG,
+			"cancel_sched_scan called when no sched scan");
+		return 0;
+	}
 
 	wpa_dbg(wpa_s, MSG_DEBUG, "Cancelling sched scan");
 	eloop_cancel_timeout(wpa_supplicant_sched_scan_timeout, wpa_s, NULL);
-	wpa_supplicant_stop_sched_scan(wpa_s);
+	return wpa_drv_stop_sched_scan(wpa_s);
 }
 
 
