@@ -3195,8 +3195,11 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		 * If we timed out, start a new sched scan to continue
 		 * searching for more SSIDs.
 		 */
-		if (wpa_s->sched_scan_timed_out)
-			wpa_supplicant_req_sched_scan(wpa_s);
+		if (wpa_s->override_sched_scan) {
+			if (wpa_supplicant_req_sched_scan(wpa_s))
+				wpa_supplicant_req_new_scan(wpa_s,
+						    wpa_s->scan_interval, 0);
+		}
 		break;
 	case EVENT_WPS_BUTTON_PUSHED:
 #ifdef CONFIG_WPS
