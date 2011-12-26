@@ -780,8 +780,8 @@ int wpa_supplicant_req_sched_scan(struct wpa_supplicant *wpa_s)
 		return -1;
 
 	if (wpa_s->sched_scanning) {
-		wpa_dbg(wpa_s, MSG_DEBUG, "Already sched scanning");
-		return 0;
+		wpa_dbg(wpa_s, MSG_DEBUG, "Cancel previous sched scan");
+		wpa_supplicant_cancel_sched_scan(wpa_s);
 	}
 
 	need_ssids = 0;
