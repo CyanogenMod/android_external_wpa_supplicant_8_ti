@@ -997,6 +997,12 @@ int wpa_supplicant_req_sched_scan(struct wpa_supplicant *wpa_s)
 		return 0;
 	}
 
+	if (!wpa_supplicant_enabled_networks(wpa_s)) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "No enabled networks -"
+			"do not sched scan");
+		return 0;
+	}
+
 	need_ssids = 0;
 	for (ssid = wpa_s->conf->ssid; ssid; ssid = ssid->next) {
 		if (!wpas_network_disabled(wpa_s, ssid) && !ssid->scan_ssid) {
