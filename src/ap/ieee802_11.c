@@ -1111,6 +1111,43 @@ static void send_deauth(struct hostapd_data *hapd, const u8 *addr,
 }
 
 
+static void add_pre_assoc_sta(struct hostapd_data *hapd, struct sta_info *sta)
+{
+	struct ieee80211_ht_capabilities ht_cap;
+	struct ieee80211_vht_capabilities vht_cap;
+
+	/*
+	 * Remove the STA entry in order to make sure the STA PS state gets
+	 * cleared and configuration gets updated in case of reassociation back
+	 * to the same AP.
+	 */
+	hostapd_drv_sta_remove(hapd, sta->addr);
+
+#ifdef CONFIG_IEEE80211N
+	if (sta->flags & WLAN_STA_HT)
+		hostapd_get_ht_capab(hapd, sta->ht_capabilities, &ht_cap);
+#endif /* CONFIG_IEEE80211N */
+#ifdef CONFIG_IEEE80211AC
+	if (sta->flags & WLAN_STA_VHT)
+		hostapd_get_vht_capab(hapd, sta->vht_capabilities, &vht_cap);
+#endif /* CONFIG_IEEE80211AC */
+
+	if (hostapd_sta_add(hapd, sta->addr, sta->aid, sta->capability,
+			    sta->supported_rates, sta->supported_rates_len,
+			    sta->listen_interval,
+			    sta->flags & WLAN_STA_HT ? &ht_cap : NULL,
+			    sta->flags & WLAN_STA_VHT ? &vht_cap : NULL,
+			    sta->flags, sta->qosinfo)) {
+		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_NOTICE,
+			       "Could not add STA to kernel driver");
+
+		ap_sta_disconnect(hapd, sta, sta->addr,
+				  WLAN_REASON_DISASSOC_AP_BUSY);
+	}
+}
+
+
 static void send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
 			    u16 status_code, int reassoc, const u8 *ies,
 			    size_t ies_len)
@@ -1209,6 +1246,11 @@ static void send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
 		}
 	}
 #endif /* CONFIG_P2P */
+
+	if (status_code == WLAN_STATUS_SUCCESS) {
+		wpa_printf(MSG_DEBUG, "Adding associated sta");
+		add_pre_assoc_sta(hapd, sta);
+	}
 
 #ifdef CONFIG_P2P_MANAGER
 	if (hapd->conf->p2p & P2P_MANAGE)
@@ -1854,8 +1896,6 @@ static void handle_assoc_cb(struct hostapd_data *hapd,
 	u16 status;
 	struct sta_info *sta;
 	int new_assoc = 1;
-	struct ieee80211_ht_capabilities ht_cap;
-	struct ieee80211_vht_capabilities vht_cap;
 
 	if (len < IEEE80211_HDRLEN + (reassoc ? sizeof(mgmt->u.reassoc_resp) :
 				      sizeof(mgmt->u.assoc_resp))) {
@@ -1871,18 +1911,19 @@ static void handle_assoc_cb(struct hostapd_data *hapd,
 		return;
 	}
 
-	if (!ok) {
-		hostapd_logger(hapd, mgmt->da, HOSTAPD_MODULE_IEEE80211,
-			       HOSTAPD_LEVEL_DEBUG,
-			       "did not acknowledge association response");
-		sta->flags &= ~WLAN_STA_ASSOC_REQ_OK;
-		return;
-	}
-
 	if (reassoc)
 		status = le_to_host16(mgmt->u.reassoc_resp.status_code);
 	else
 		status = le_to_host16(mgmt->u.assoc_resp.status_code);
+
+	if (!ok) {
+		hostapd_logger(hapd, mgmt->da, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "did not acknowledge association response");
+		if (status == WLAN_STATUS_SUCCESS)
+			hostapd_drv_sta_remove(hapd, sta->addr);
+		return;
+	}
 
 	if (status != WLAN_STATUS_SUCCESS)
 		goto fail;
@@ -1917,37 +1958,6 @@ static void handle_assoc_cb(struct hostapd_data *hapd,
 	sta->sa_query_timed_out = 0;
 #endif /* CONFIG_IEEE80211W */
 
-	/*
-	 * Remove the STA entry in order to make sure the STA PS state gets
-	 * cleared and configuration gets updated in case of reassociation back
-	 * to the same AP.
-	 */
-	hostapd_drv_sta_remove(hapd, sta->addr);
-
-#ifdef CONFIG_IEEE80211N
-	if (sta->flags & WLAN_STA_HT)
-		hostapd_get_ht_capab(hapd, sta->ht_capabilities, &ht_cap);
-#endif /* CONFIG_IEEE80211N */
-#ifdef CONFIG_IEEE80211AC
-	if (sta->flags & WLAN_STA_VHT)
-		hostapd_get_vht_capab(hapd, sta->vht_capabilities, &vht_cap);
-#endif /* CONFIG_IEEE80211AC */
-
-	if (hostapd_sta_add(hapd, sta->addr, sta->aid, sta->capability,
-			    sta->supported_rates, sta->supported_rates_len,
-			    sta->listen_interval,
-			    sta->flags & WLAN_STA_HT ? &ht_cap : NULL,
-			    sta->flags & WLAN_STA_VHT ? &vht_cap : NULL,
-			    sta->flags, sta->qosinfo)) {
-		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
-			       HOSTAPD_LEVEL_NOTICE,
-			       "Could not add STA to kernel driver");
-
-		ap_sta_disconnect(hapd, sta, sta->addr,
-				  WLAN_REASON_DISASSOC_AP_BUSY);
-
-		goto fail;
-	}
 
 	if (sta->flags & WLAN_STA_WDS) {
 		int ret;
