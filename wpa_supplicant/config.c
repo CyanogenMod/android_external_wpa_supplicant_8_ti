@@ -2515,6 +2515,10 @@ struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 	config->wmm_ac_params[1] = ac_bk;
 	config->wmm_ac_params[2] = ac_vi;
 	config->wmm_ac_params[3] = ac_vo;
+	config->sched_scan_short_interval = DEFAULT_SCHED_SCAN_SHORT_INTERVAL;
+	config->sched_scan_long_interval = DEFAULT_SCHED_SCAN_LONG_INTERVAL;
+	config->sched_scan_num_short_intervals =
+		DEFAULT_SCHED_SCAN_NUM_SHORT_INTERVALS;
 
 	if (ctrl_interface)
 		config->ctrl_interface = os_strdup(ctrl_interface);
@@ -2935,7 +2939,10 @@ static const struct global_parse_data global_fields[] = {
 	{ INT_RANGE(wps_nfc_dev_pw_id, 0x10, 0xffff), 0 },
 	{ BIN(wps_nfc_dh_pubkey), 0 },
 	{ BIN(wps_nfc_dh_privkey), 0 },
-	{ BIN(wps_nfc_dev_pw), 0 }
+	{ BIN(wps_nfc_dev_pw), 0 },
+	{ INT_RANGE(sched_scan_num_short_intervals, 0, 14), 0 },
+	{ INT_RANGE(sched_scan_short_interval, 1, 3600), 0 },
+	{ INT_RANGE(sched_scan_long_interval, 1, 3600), 0 },
 };
 
 #undef FUNC

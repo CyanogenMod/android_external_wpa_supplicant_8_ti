@@ -270,7 +270,12 @@ static int wpa_config_read_global(struct wpa_config *config, HKEY hk)
 				  (int *) &config->max_num_sta);
 	wpa_config_read_reg_dword(hk, TEXT("disassoc_low_ack"),
 				  (int *) &config->disassoc_low_ack);
-
+	wpa_config_read_reg_dword(hk, TEXT("sched_scan_num_short_intervals"),
+				  &config->sched_scan_num_short_intervals);
+	wpa_config_read_reg_dword(hk, TEXT("sched_scan_short_interval"),
+				  &config->sched_scan_short_interval);
+	wpa_config_read_reg_dword(hk, TEXT("sched_scan_long_intervals"),
+				  &config->sched_scan_long_intervals);
 	return errors ? -1 : 0;
 }
 
@@ -615,6 +620,15 @@ static int wpa_config_write_global(struct wpa_config *config, HKEY hk)
 				   config->max_num_sta, DEFAULT_MAX_NUM_STA);
 	wpa_config_write_reg_dword(hk, TEXT("disassoc_low_ack"),
 				   config->disassoc_low_ack, 0);
+	wpa_config_write_reg_dword(hk, TEXT("sched_scan_num_short_intervals"),
+				   config->sched_scan_num_short_intervals,
+				   DEFAULT_SCHED_SCAN_NUM_SHORT_INTERVALS);
+	wpa_config_write_reg_dword(hk, TEXT("sched_scan_short_interval"),
+				   config->sched_scan_short_interval,
+				   DEFAULT_SCHED_SCAN_SHORT_INTERVAL);
+	wpa_config_write_reg_dword(hk, TEXT("sched_scan_long_interval"),
+				   config->sched_scan_long_interval,
+				   DEFAULT_SCHED_SCAN_LONG_INTERVAL);
 
 	return 0;
 }
