@@ -25,6 +25,11 @@
 #define DEFAULT_MAX_NUM_STA 128
 #define DEFAULT_ACCESS_NETWORK_TYPE 15
 #define DEFAULT_SCAN_CUR_FREQ 0
+#define MAX_SCHED_SCAN_INTERVAL 3600
+#define MAX_NUM_SCHED_SCAN_SHORT_INTERVALS 14
+#define DEFAULT_SCHED_SCAN_SHORT_INTERVAL 5
+#define DEFAULT_SCHED_SCAN_LONG_INTERVAL 30
+#define DEFAULT_SCHED_SCAN_NUM_SHORT_INTERVALS 10
 
 #include "config_ssid.h"
 #include "wps/wps.h"
@@ -876,6 +881,24 @@ struct wpa_config {
 	 * sched_scan_interval -  schedule scan interval
 	 */
 	unsigned int sched_scan_interval;
+
+	/**
+	 * sched_scan_short_interval - Initial interval for sched scan in secs
+	 * sched scan will start with this interval for num_short_intervals
+	 * intervals and then switch to a longer interval defined by
+	 * sched_scan_long_interval;
+	 */
+	int sched_scan_short_interval;
+
+	/**
+	 * long_sched_scan_interval - see sched_scan_short_interval
+	 */
+	int sched_scan_long_interval;
+
+	/**
+	 * sched_scan_num_short_intervals - see sched_scan_short_interval
+	 */
+	int sched_scan_num_short_intervals;
 };
 
 
