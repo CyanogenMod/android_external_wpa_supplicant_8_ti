@@ -2520,6 +2520,12 @@ broken_combination:
 	if (tb[NL80211_ATTR_SUPPORT_AP_UAPSD])
 		capa->flags |= WPA_DRIVER_FLAGS_AP_UAPSD;
 
+	if (tb[NL80211_ATTR_FEATURE_FLAGS]) {
+		int features = nla_get_u32(tb[NL80211_ATTR_FEATURE_FLAGS]);
+		if (features & NL80211_FEATURE_SCHED_SCAN_INTERVALS)
+			capa->sched_scan_intervals_supported = 1;
+	}
+
 	if (tb[NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION])
 		capa->max_remain_on_chan =
 			nla_get_u32(tb[NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION]);

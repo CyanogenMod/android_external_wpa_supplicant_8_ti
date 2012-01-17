@@ -831,6 +831,7 @@ struct wpa_driver_capa {
 	int max_scan_ssids;
 	int max_sched_scan_ssids;
 	int sched_scan_supported;
+	int sched_scan_intervals_supported;
 	int max_match_sets;
 
 	/**
