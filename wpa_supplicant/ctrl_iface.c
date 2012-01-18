@@ -101,7 +101,7 @@ static int pno_start(struct wpa_supplicant *wpa_s)
 	if (wpa_s->conf->filter_rssi)
 		params.filter_rssi = wpa_s->conf->filter_rssi;
 
-	ret = wpa_drv_sched_scan(wpa_s, &params, 10 * 1000);
+	ret = wpa_drv_sched_scan(wpa_s, &params, 10 * 1000, 10 * 1000, 0);
 	os_free(params.filter_ssids);
 	if (ret == 0)
 		wpa_s->pno = 1;

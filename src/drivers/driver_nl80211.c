@@ -3607,12 +3607,16 @@ nla_put_failure:
  * wpa_driver_nl80211_sched_scan - Initiate a scheduled scan
  * @priv: Pointer to private driver data from wpa_driver_nl80211_init()
  * @params: Scan parameters
- * @interval: Interval between scan cycles in milliseconds
+ * @long_interval: interval between scan cycles after end of short cycles
+ * @short_interval: interval between initial short scan cycles
+ * @num_short_intervals: number of interval short scan intervals
  * Returns: 0 on success, -1 on failure or if not supported
  */
 static int wpa_driver_nl80211_sched_scan(void *priv,
 					 struct wpa_driver_scan_params *params,
-					 u32 interval)
+					 u32 long_interval,
+					 u32 short_interval,
+					 u8 num_short_intervals)
 {
 	struct i802_bss *bss = priv;
 	struct wpa_driver_nl80211_data *drv = bss->drv;
@@ -3645,7 +3649,17 @@ static int wpa_driver_nl80211_sched_scan(void *priv,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, drv->ifindex);
 
-	NLA_PUT_U32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL, interval);
+	NLA_PUT_U32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL, long_interval);
+
+	if (drv->capa.sched_scan_intervals_supported) {
+		NLA_PUT_U32(msg,
+			    NL80211_ATTR_SCHED_SCAN_SHORT_INTERVAL,
+			    short_interval);
+
+		NLA_PUT_U8(msg,
+			   NL80211_ATTR_SCHED_SCAN_NUM_SHORT_INTERVALS,
+			   num_short_intervals);
+	}
 
 	if ((drv->num_filter_ssids &&
 	    (int) drv->num_filter_ssids <= drv->capa.max_match_sets) ||
@@ -3723,8 +3737,9 @@ static int wpa_driver_nl80211_sched_scan(void *priv,
 		goto nla_put_failure;
 	}
 
-	wpa_printf(MSG_DEBUG, "nl80211: Sched scan requested (ret=%d) - "
-		   "scan interval %d msec", ret, interval);
+	wpa_printf(MSG_DEBUG, "nl80211: Sched scan requested (ret=%d) "
+		   "intervals: short=%d ms long=%d ms num_short_intervals=%d"
+		   , ret, short_interval, long_interval, num_short_intervals);
 
 nla_put_failure:
 	nlmsg_free(ssids);

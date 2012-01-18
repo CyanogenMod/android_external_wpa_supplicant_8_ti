@@ -1485,6 +1485,40 @@ struct wpa_driver_ops {
 	int (*scan2)(void *priv, struct wpa_driver_scan_params *params);
 
 	/**
+	 * sched_scan - Request the driver to initiate scheduled scan
+	 * @priv: private driver interface data
+	 * @params: Scan parameters
+	 * @long_interval: interval between cycles after short intervals end
+	 * @short_interval: interval between initial short scan cycles
+	 * @num_short_intervals: number of interval short scan intervals
+	 *
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This operation should be used for scheduled scan offload to
+	 * the hardware.  Every time scan results are available, the
+	 * driver should report scan results event for wpa_supplicant
+	 * which will eventually request the results with
+	 * wpa_driver_get_scan_results2().  This operation is optional
+	 * and if not provided or if it returns -1, we fall back to
+	 * normal host-scheduled scans.
+	 */
+	int (*sched_scan)(void *priv, struct wpa_driver_scan_params *params,
+			  u32 long_interval, u32 short_interval,
+			  u8 num_short_intervals);
+
+	/**
+	 * stop_sched_scan - Request the driver to stop a scheduled scan
+	 * @priv: private driver interface data
+	 *
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This should cause the scheduled scan to be stopped and
+	 * results should stop being sent.  Must be supported if
+	 * sched_scan is supported.
+	 */
+	int (*stop_sched_scan)(void *priv);
+
+	/**
 	 * authenticate - Request driver to authenticate
 	 * @priv: private driver interface data
 	 * @params: authentication parameters
@@ -2501,35 +2535,6 @@ struct wpa_driver_ops {
 	 * the station gets added by FT-over-DS.
 	 */
 	int (*add_sta_node)(void *priv, const u8 *addr, u16 auth_alg);
-
-	/**
-	 * sched_scan - Request the driver to initiate scheduled scan
-	 * @priv: Private driver interface data
-	 * @params: Scan parameters
-	 * @interval: Interval between scan cycles in milliseconds
-	 * Returns: 0 on success, -1 on failure
-	 *
-	 * This operation should be used for scheduled scan offload to
-	 * the hardware. Every time scan results are available, the
-	 * driver should report scan results event for wpa_supplicant
-	 * which will eventually request the results with
-	 * wpa_driver_get_scan_results2(). This operation is optional
-	 * and if not provided or if it returns -1, we fall back to
-	 * normal host-scheduled scans.
-	 */
-	int (*sched_scan)(void *priv, struct wpa_driver_scan_params *params,
-			  u32 interval);
-
-	/**
-	 * stop_sched_scan - Request the driver to stop a scheduled scan
-	 * @priv: Private driver interface data
-	 * Returns: 0 on success, -1 on failure
-	 *
-	 * This should cause the scheduled scan to be stopped and
-	 * results should stop being sent. Must be supported if
-	 * sched_scan is supported.
-	 */
-	int (*stop_sched_scan)(void *priv);
 
 	/**
 	 * poll_client - Probe (null data or such) the given station

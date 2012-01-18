@@ -223,11 +223,16 @@ wpa_supplicant_delayed_sched_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 static int
 wpa_supplicant_start_sched_scan(struct wpa_supplicant *wpa_s,
 				struct wpa_driver_scan_params *params,
-				int interval)
+				int long_interval,
+				int short_interval,
+				u8 num_short_intervals)
 {
 	int ret;
 
-	ret = wpa_drv_sched_scan(wpa_s, params, interval * 1000);
+	ret = wpa_drv_sched_scan(wpa_s, params,
+				 long_interval * 1000,
+				 short_interval * 1000,
+				 num_short_intervals);
 	if (!ret)
 		wpa_s->sched_scanning = 1;
 
@@ -883,11 +888,28 @@ start_scan:
 	scan_params = &params;
 
 scan:
-	wpa_dbg(wpa_s, MSG_DEBUG, "Starting sched scan: interval %d",
-		wpa_s->sched_scan_interval);
 
-	ret = wpa_supplicant_start_sched_scan(wpa_s, scan_params,
-					      wpa_s->sched_scan_interval);
+	if (wpa_s->sched_scan_intervals_supported) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "Starting sched scan: "
+			" short interval %d long_interval %d"
+			" num_short_intervals %d",
+			wpa_s->conf->sched_scan_short_interval,
+			wpa_s->conf->sched_scan_long_interval,
+			wpa_s->conf->sched_scan_num_short_intervals);
+
+		ret = wpa_supplicant_start_sched_scan(wpa_s, scan_params,
+				   wpa_s->conf->sched_scan_long_interval,
+				   wpa_s->conf->sched_scan_short_interval,
+				   wpa_s->conf->sched_scan_num_short_intervals);
+	} else {
+		wpa_dbg(wpa_s, MSG_DEBUG, "Starting sched scan: interval %d",
+			wpa_s->conf->sched_scan_long_interval);
+
+		ret = wpa_supplicant_start_sched_scan(wpa_s, scan_params,
+				   wpa_s->conf->sched_scan_long_interval, 0, 0);
+	}
+
+
 	wpabuf_free(wps_ie);
 	if (params.filter_ssids)
 		os_free(params.filter_ssids);
