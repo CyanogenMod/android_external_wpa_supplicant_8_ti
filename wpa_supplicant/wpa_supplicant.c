@@ -537,7 +537,7 @@ const char * wpa_supplicant_state_txt(enum wpa_states state)
 
 #ifdef CONFIG_BGSCAN
 
-static void wpa_supplicant_start_bgscan(struct wpa_supplicant *wpa_s)
+void wpa_supplicant_start_bgscan(struct wpa_supplicant *wpa_s)
 {
 	if (wpas_driver_bss_selection(wpa_s))
 		return;
@@ -565,7 +565,7 @@ static void wpa_supplicant_start_bgscan(struct wpa_supplicant *wpa_s)
 }
 
 
-static void wpa_supplicant_stop_bgscan(struct wpa_supplicant *wpa_s)
+void wpa_supplicant_stop_bgscan(struct wpa_supplicant *wpa_s)
 {
 	if (wpa_s->bgscan_ssid != NULL) {
 		bgscan_deinit(wpa_s);
@@ -653,7 +653,7 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s,
 	wpa_s->wpa_state = state;
 
 #ifdef CONFIG_BGSCAN
-	if (state == WPA_COMPLETED)
+	if (state == WPA_COMPLETED && !wpa_s->roaming_disabled)
 		wpa_supplicant_start_bgscan(wpa_s);
 	else
 		wpa_supplicant_stop_bgscan(wpa_s);

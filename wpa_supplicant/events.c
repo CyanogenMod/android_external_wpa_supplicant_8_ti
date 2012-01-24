@@ -935,6 +935,11 @@ static int wpa_supplicant_need_to_roam(struct wpa_supplicant *wpa_s,
 		return 1; /* we are not associated; continue */
 	if (wpa_s->current_ssid == NULL)
 		return 1; /* unknown current SSID */
+	if (wpa_s->roaming_disabled) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "Skip roam - "
+			"driver doesn't allow roaming now");
+		return 0;
+	}
 	if (wpa_s->current_ssid != ssid)
 		return 1; /* different network block */
 
@@ -2660,6 +2665,24 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 			data->signal_change.current_noise,
 			data->signal_change.current_txrate);
 		break;
+
+
+	case EVENT_ROAMING_ENABLED:
+#ifdef CONFIG_BGSCAN
+		if (wpa_s->roaming_disabled &&
+		    wpa_s->wpa_state == WPA_COMPLETED)
+			wpa_supplicant_start_bgscan(wpa_s);
+#endif /* CONFIG_BGSCAN */
+		wpa_s->roaming_disabled = 0;
+		break;
+
+	case EVENT_ROAMING_DISABLED:
+		wpa_s->roaming_disabled = 1;
+#ifdef CONFIG_BGSCAN
+		wpa_supplicant_stop_bgscan(wpa_s);
+#endif /* CONFIG_BGSCAN */
+		break;
+
 	case EVENT_INTERFACE_ENABLED:
 		wpa_dbg(wpa_s, MSG_DEBUG, "Interface was enabled");
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED) {
