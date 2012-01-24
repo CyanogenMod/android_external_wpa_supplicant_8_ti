@@ -2864,6 +2864,22 @@ enum wpa_event_type {
 	EVENT_SIGNAL_CHANGE,
 
 	/**
+	 * EVENT_ROAMING_ENABLED - Notify that the driver can do roaming again
+	 *
+	 * This event is used to indicate that the driver can do roaming
+	 * and bgscan after it was previosly disabled
+	 */
+	EVENT_ROAMING_ENABLED,
+
+	/**
+	 * EVENT_ROAMING_DISABLED - Notify that the driver can't do roaming
+	 *
+	 * This event is used to indicate that the driver can't do roaming
+	 * and bgscan and roaming attempts should be disabled
+	 */
+	EVENT_ROAMING_DISABLED,
+
+	/**
 	 * EVENT_INTERFACE_ENABLED - Notify that interface was enabled
 	 *
 	 * This event is used to indicate that the interface was enabled after

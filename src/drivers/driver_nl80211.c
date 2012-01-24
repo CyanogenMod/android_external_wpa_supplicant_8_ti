@@ -1917,6 +1917,25 @@ static void nl80211_cqm_event(struct wpa_driver_nl80211_data *drv,
 }
 
 
+static void nl80211_roaming_support_event(struct wpa_driver_nl80211_data *drv,
+					  struct nlattr *tb[])
+{
+	int enabled;
+	enum wpa_event_type event;
+
+	enabled = (tb[NL80211_ATTR_ROAMING_DISABLED] == NULL);
+
+	if (enabled)
+		event = EVENT_ROAMING_ENABLED;
+	else
+		event = EVENT_ROAMING_DISABLED;
+
+	wpa_printf(MSG_DEBUG, "nl80211: roaming %s",
+		   enabled ? "enabled" : "disabled");
+
+	wpa_supplicant_event(drv->ctx, event, NULL);
+}
+
 static void nl80211_new_station_event(struct wpa_driver_nl80211_data *drv,
 				      struct nlattr **tb)
 {
@@ -2173,6 +2192,9 @@ static void do_process_drv_event(struct wpa_driver_nl80211_data *drv,
 		break;
 	case NL80211_CMD_NOTIFY_CQM:
 		nl80211_cqm_event(drv, tb);
+		break;
+	case NL80211_CMD_ROAMING_SUPPORT:
+		nl80211_roaming_support_event(drv, tb);
 		break;
 	case NL80211_CMD_REG_CHANGE:
 		wpa_printf(MSG_DEBUG, "nl80211: Regulatory domain change");
