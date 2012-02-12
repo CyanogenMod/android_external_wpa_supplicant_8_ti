@@ -647,6 +647,25 @@ static int wpa_cli_cmd_scan_interval(struct wpa_ctrl *ctrl, int argc,
 	return wpa_ctrl_command(ctrl, cmd);
 }
 
+static int wpa_cli_cmd_sched_scan_intervals(struct wpa_ctrl *ctrl, int argc,
+					    char *argv[])
+{
+	char cmd[256];
+	int res;
+
+	if (argc != 3) {
+		printf("Invalid SCHED_SCAN_INTERVALS command: "
+		       "needs 3 arguments\n");
+		return -1;
+	}
+	res = os_snprintf(cmd, sizeof(cmd), "SCHED_SCAN_INTERVALS %s %s %s",
+			  argv[0], argv[1], argv[2]);
+	if (res < 0 || (size_t) res >= sizeof(cmd) - 1) {
+		printf("Too long SCHED_SCAN_INTERVAL command.\n");
+		return -1;
+	}
+	return wpa_ctrl_command(ctrl, cmd);
+}
 
 static int wpa_cli_cmd_bss_expire_age(struct wpa_ctrl *ctrl, int argc,
 				      char *argv[])
@@ -3121,6 +3140,12 @@ static struct wpa_cli_cmd wpa_cli_commands[] = {
 	{ "scan_interval", wpa_cli_cmd_scan_interval,
 	  cli_cmd_flag_none,
 	  "<value> = set scan_interval parameter (in seconds)" },
+	{ "sched_scan_intervals", wpa_cli_cmd_sched_scan_intervals,
+	  cli_cmd_flag_none,
+	  "<short_interval> <long_interval> <num_short_intervals>\n"
+	  "  Set sched scan intervals parameters\n"
+	  "  <short|long_interval> = intervals values (in seconds)\n"
+	  "  <num_short_intervals> = num of intervals to use short_interval"},
 	{ "bss_expire_age", wpa_cli_cmd_bss_expire_age,
 	  cli_cmd_flag_none,
 	  "<value> = set BSS expiration age parameter" },

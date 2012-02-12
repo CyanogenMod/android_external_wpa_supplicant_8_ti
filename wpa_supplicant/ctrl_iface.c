@@ -2777,6 +2777,61 @@ static int wpa_supplicant_ctrl_iface_scan_interval(
 	return wpa_supplicant_set_scan_interval(wpa_s, scan_int);
 }
 
+static int wpa_supplicant_ctrl_iface_sched_scan_intervals(
+	struct wpa_supplicant *wpa_s, char *cmd)
+
+{
+	char *long_interval_str, *num_shorts_str;
+	int short_interval, long_interval, num_short_intervals;
+
+	/* cmd: <short interval> <long interval> <number of short intervals>" */
+	long_interval_str = os_strchr(cmd, ' ');
+	if (long_interval_str == NULL)
+		return -1;
+	*long_interval_str++ = '\0';
+
+	num_shorts_str = os_strchr(long_interval_str, ' ');
+	if (num_shorts_str == NULL)
+		return -1;
+	*num_shorts_str++ = '\0';
+
+	short_interval = atoi(cmd);
+	if (short_interval <= 0 || short_interval > MAX_SCHED_SCAN_INTERVAL) {
+		wpa_printf(MSG_DEBUG,
+			   "Invalid short interval: %d", short_interval);
+		return -1;
+	}
+
+	long_interval = atoi(long_interval_str);
+	if (long_interval <= 0 || long_interval > MAX_SCHED_SCAN_INTERVAL) {
+		wpa_printf(MSG_DEBUG,
+			   "Invalid long interval: %d", long_interval);
+		return -1;
+	}
+
+	num_short_intervals = atoi(num_shorts_str);
+	if (num_short_intervals < 0 ||
+	    num_short_intervals > MAX_NUM_SCHED_SCAN_SHORT_INTERVALS) {
+		wpa_printf(MSG_DEBUG, "Invalid num short intervals: %d",
+			   num_short_intervals);
+		return -1;
+	}
+
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE: SCHED_SCAN_INTERVALS "
+		   "short=%d long=%d num_short=%d",
+		   short_interval, long_interval, num_short_intervals);
+
+	wpa_s->conf->sched_scan_short_interval = short_interval;
+	wpa_s->conf->sched_scan_long_interval = long_interval;
+	wpa_s->conf->sched_scan_num_short_intervals = num_short_intervals;
+
+	/* Restart sched scan with the new parameters in case already running */
+	if (wpa_s->sched_scanning)
+		wpa_supplicant_req_sched_scan(wpa_s);
+
+	return 0;
+}
+
 
 static int wpa_supplicant_ctrl_iface_bss_expire_age(
 	struct wpa_supplicant *wpa_s, char *cmd)
@@ -4422,6 +4477,10 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 			reply_len = -1;
 	} else if (os_strncmp(buf, "SCAN_INTERVAL ", 14) == 0) {
 		if (wpa_supplicant_ctrl_iface_scan_interval(wpa_s, buf + 14))
+			reply_len = -1;
+	} else if (os_strncmp(buf, "SCHED_SCAN_INTERVALS ", 21) == 0) {
+		if (wpa_supplicant_ctrl_iface_sched_scan_intervals(
+			    wpa_s, buf + 21))
 			reply_len = -1;
 	} else if (os_strcmp(buf, "INTERFACE_LIST") == 0) {
 		reply_len = wpa_supplicant_global_iface_list(
