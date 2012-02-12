@@ -285,6 +285,13 @@ static int wpa_supplicant_ctrl_iface_set(struct wpa_supplicant *wpa_s,
 		ret = wpa_drv_set_p2p_powersave(wpa_s, atoi(value), -1, -1);
 	} else if (os_strcasecmp(cmd, "bssid_filter") == 0) {
 		ret = set_bssid_filter(wpa_s, value);
+	} else if (os_strcasecmp(cmd, "roaming_disabled") == 0) {
+		int disabled = atoi(value);
+		wpa_printf(MSG_DEBUG, "roaming_disabled=%d", disabled);
+		if (disabled)
+			wpa_supplicant_disable_roaming(wpa_s);
+		else
+			wpa_supplicant_enable_roaming(wpa_s);
 	} else {
 		value[-1] = '=';
 		ret = wpa_config_process_global(wpa_s->conf, cmd, -1);

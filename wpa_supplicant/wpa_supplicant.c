@@ -575,6 +575,23 @@ void wpa_supplicant_stop_bgscan(struct wpa_supplicant *wpa_s)
 
 #endif /* CONFIG_BGSCAN */
 
+void wpa_supplicant_enable_roaming(struct wpa_supplicant *wpa_s)
+{
+#ifdef CONFIG_BGSCAN
+	if (wpa_s->roaming_disabled &&
+	    wpa_s->wpa_state == WPA_COMPLETED)
+		wpa_supplicant_start_bgscan(wpa_s);
+#endif /* CONFIG_BGSCAN */
+	wpa_s->roaming_disabled = 0;
+}
+
+void wpa_supplicant_disable_roaming(struct wpa_supplicant *wpa_s)
+{
+	wpa_s->roaming_disabled = 1;
+#ifdef CONFIG_BGSCAN
+	wpa_supplicant_stop_bgscan(wpa_s);
+#endif /* CONFIG_BGSCAN */
+}
 
 static void wpa_supplicant_start_autoscan(struct wpa_supplicant *wpa_s)
 {

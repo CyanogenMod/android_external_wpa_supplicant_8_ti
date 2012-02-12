@@ -2665,24 +2665,12 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 			data->signal_change.current_noise,
 			data->signal_change.current_txrate);
 		break;
-
-
 	case EVENT_ROAMING_ENABLED:
-#ifdef CONFIG_BGSCAN
-		if (wpa_s->roaming_disabled &&
-		    wpa_s->wpa_state == WPA_COMPLETED)
-			wpa_supplicant_start_bgscan(wpa_s);
-#endif /* CONFIG_BGSCAN */
-		wpa_s->roaming_disabled = 0;
+		wpa_supplicant_enable_roaming(wpa_s);
 		break;
-
 	case EVENT_ROAMING_DISABLED:
-		wpa_s->roaming_disabled = 1;
-#ifdef CONFIG_BGSCAN
-		wpa_supplicant_stop_bgscan(wpa_s);
-#endif /* CONFIG_BGSCAN */
+		wpa_supplicant_disable_roaming(wpa_s);
 		break;
-
 	case EVENT_INTERFACE_ENABLED:
 		wpa_dbg(wpa_s, MSG_DEBUG, "Interface was enabled");
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED) {

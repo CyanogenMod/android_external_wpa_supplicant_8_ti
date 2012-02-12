@@ -608,6 +608,8 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s,
 			      enum wpa_states state);
 void wpa_supplicant_start_bgscan(struct wpa_supplicant *wpa_s);
 void wpa_supplicant_stop_bgscan(struct wpa_supplicant *wpa_s);
+void wpa_supplicant_enable_roaming(struct wpa_supplicant *wpa_s);
+void wpa_supplicant_disable_roaming(struct wpa_supplicant *wpa_s);
 struct wpa_ssid * wpa_supplicant_get_ssid(struct wpa_supplicant *wpa_s);
 const char * wpa_supplicant_get_eap_mode(struct wpa_supplicant *wpa_s);
 void wpa_supplicant_cancel_auth_timeout(struct wpa_supplicant *wpa_s);
