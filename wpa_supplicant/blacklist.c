@@ -11,6 +11,7 @@
 #include "common.h"
 #include "wpa_supplicant_i.h"
 #include "blacklist.h"
+#include "eloop.h"
 
 /**
  * wpa_blacklist_get - Get the blacklist entry for a BSSID
@@ -33,6 +34,49 @@ struct wpa_blacklist * wpa_blacklist_get(struct wpa_supplicant *wpa_s,
 	return NULL;
 }
 
+#define BLACKLIST_TIMEOUT (2*60)
+static void blacklist_timeout(void *eloop_ctx, void *timeout_ctx)
+{
+	struct wpa_supplicant *wpa_s = eloop_ctx;
+	struct wpa_blacklist *e, *prev = NULL, *next = NULL;
+	struct wpa_blacklist *earliest = NULL;
+	struct os_time now;
+	unsigned long next_time;
+
+	wpa_printf(MSG_DEBUG, "Starting blacklist timeout eloop");
+
+	os_get_time(&now);
+	e = wpa_s->blacklist;
+	while (e) {
+		if (now.sec >= e->last_add.sec + BLACKLIST_TIMEOUT) {
+			if (prev == NULL) {
+				wpa_s->blacklist = e->next;
+			} else {
+				prev->next = e->next;
+			}
+			wpa_printf(MSG_DEBUG, "Removed BSSID " MACSTR " from "
+				   "blacklist due to timeout",
+				   MAC2STR(e->bssid));
+
+			next = e->next;
+			os_free(e);
+			e = next;
+			continue;
+		}
+		if (!earliest ||
+		    os_time_before(&e->last_add, &earliest->last_add))
+			earliest = e;
+		prev = e;
+		e = e->next;
+	}
+
+	if (earliest) {
+		next_time = earliest->last_add.sec +
+			    BLACKLIST_TIMEOUT - now.sec;
+		eloop_register_timeout(next_time, 0, blacklist_timeout,
+				       wpa_s, NULL);
+	}
+}
 
 /**
  * wpa_blacklist_add - Add an BSSID to the blacklist
@@ -57,6 +101,7 @@ int wpa_blacklist_add(struct wpa_supplicant *wpa_s, const u8 *bssid)
 	e = wpa_blacklist_get(wpa_s, bssid);
 	if (e) {
 		e->count++;
+		os_get_time(&e->last_add);
 		wpa_printf(MSG_DEBUG, "BSSID " MACSTR " blacklist count "
 			   "incremented to %d",
 			   MAC2STR(bssid), e->count);
@@ -68,11 +113,15 @@ int wpa_blacklist_add(struct wpa_supplicant *wpa_s, const u8 *bssid)
 		return -1;
 	os_memcpy(e->bssid, bssid, ETH_ALEN);
 	e->count = 1;
+	os_get_time(&e->last_add);
 	e->next = wpa_s->blacklist;
 	wpa_s->blacklist = e;
 	wpa_printf(MSG_DEBUG, "Added BSSID " MACSTR " into blacklist",
 		   MAC2STR(bssid));
 
+	if (!e->next)
+		eloop_register_timeout(BLACKLIST_TIMEOUT, 0, blacklist_timeout,
+				       wpa_s, NULL);
 	return e->count;
 }
 
@@ -103,6 +152,8 @@ int wpa_blacklist_del(struct wpa_supplicant *wpa_s, const u8 *bssid)
 		prev = e;
 		e = e->next;
 	}
+	if (!wpa_s->blacklist)
+		eloop_cancel_timeout(blacklist_timeout, wpa_s, NULL);
 	return -1;
 }
 
@@ -124,4 +175,5 @@ void wpa_blacklist_clear(struct wpa_supplicant *wpa_s)
 			   "blacklist (clear)", MAC2STR(prev->bssid));
 		os_free(prev);
 	}
+	eloop_cancel_timeout(blacklist_timeout, wpa_s, NULL);
 }
