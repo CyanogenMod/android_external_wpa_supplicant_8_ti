@@ -13,6 +13,7 @@ struct wpa_blacklist {
 	struct wpa_blacklist *next;
 	u8 bssid[ETH_ALEN];
 	int count;
+	struct os_time last_add;
 };
 
 struct wpa_blacklist * wpa_blacklist_get(struct wpa_supplicant *wpa_s,
