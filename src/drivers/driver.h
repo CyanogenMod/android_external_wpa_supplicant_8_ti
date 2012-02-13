@@ -3283,7 +3283,9 @@ enum wpa_event_type {
 	* entry for one frequency. The survey data can be os_malloc()'d and
 	* then os_free()'d, so the event callback must only copy data.
 	*/
-	EVENT_SURVEY
+	EVENT_SURVEY,
+
+	EVENT_START_ROAMING,
 };
 
 
