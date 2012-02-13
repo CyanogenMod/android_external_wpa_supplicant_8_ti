@@ -62,6 +62,7 @@ void sme_authenticate(struct wpa_supplicant *wpa_s,
 
 	os_memset(&params, 0, sizeof(params));
 	wpa_s->reassociate = 0;
+	wpa_s->roaming = 0;
 
 	params.freq = bss->freq;
 	params.bssid = bss->bssid;

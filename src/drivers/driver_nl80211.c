@@ -1896,6 +1896,10 @@ static void nl80211_cqm_event(struct wpa_driver_nl80211_data *drv,
 		wpa_printf(MSG_DEBUG, "nl80211: Connection quality monitor "
 			   "event: RSSI low");
 		ed.signal_change.above_threshold = 0;
+	} else if (event == NL80211_CQM_RSSI_BEACON_LOSS_EVENT) {
+		wpa_printf(MSG_DEBUG, "nl80211: Connection quality monitor "
+			   "event: beacon loss!");
+		wpa_supplicant_event(drv->ctx, EVENT_START_ROAMING, &ed);
 	} else
 		return;
 

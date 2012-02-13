@@ -27,6 +27,7 @@ void wpa_scan_results_free(struct wpa_scan_results *res)
 const char * event_to_string(enum wpa_event_type event)
 {
 #define E2S(n) case EVENT_ ## n: return #n
+
 	switch (event) {
 	E2S(ASSOC);
 	E2S(DISASSOC);
@@ -80,6 +81,7 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(CH_SWITCH);
 	E2S(ROAMING_ENABLED);
 	E2S(ROAMING_DISABLED);
+	E2S(START_ROAMING);
 	}
 
 	return "UNKNOWN";

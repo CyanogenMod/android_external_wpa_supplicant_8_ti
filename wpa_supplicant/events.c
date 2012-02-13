@@ -636,6 +636,12 @@ static struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
 		}
 	}
 
+	if (wpa_s->roaming &&
+	    os_memcmp(wpa_s->bssid, bss->bssid, ETH_ALEN) == 0) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - current bssid (roaming)");
+		return NULL;
+	}
+
 	if (ssid_len == 0) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - SSID not known");
 		return NULL;
@@ -931,6 +937,8 @@ static int wpa_supplicant_need_to_roam(struct wpa_supplicant *wpa_s,
 
 	if (wpa_s->reassociate)
 		return 1; /* explicit request to reassociate */
+	if (wpa_s->roaming)
+		return 1; /* explicit request to roam */
 	if (wpa_s->wpa_state < WPA_ASSOCIATED)
 		return 1; /* we are not associated; continue */
 	if (wpa_s->current_ssid == NULL)
@@ -2672,6 +2680,14 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 	case EVENT_ROAMING_DISABLED:
 		wpa_supplicant_disable_roaming(wpa_s);
 		break;
+
+	case EVENT_START_ROAMING:
+		if (!is_zero_ether_addr(wpa_s->bssid)) {
+			wpa_s->roaming = 1;
+			wpa_supplicant_req_scan(wpa_s, 0, 0);
+		}
+		break;
+
 	case EVENT_INTERFACE_ENABLED:
 		wpa_dbg(wpa_s, MSG_DEBUG, "Interface was enabled");
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED) {
