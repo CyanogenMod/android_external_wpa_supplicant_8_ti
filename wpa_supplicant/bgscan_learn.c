@@ -284,21 +284,33 @@ static void bgscan_learn_timeout(void *eloop_ctx, void *timeout_ctx)
 		freqs = bgscan_learn_get_freqs(data, &count);
 		wpa_printf(MSG_DEBUG, "bgscan learn: BSSes in this ESS have "
 			   "been seen on %u channels", (unsigned int) count);
-		freqs = bgscan_learn_get_probe_freq(data, freqs, count);
 
-		msg[0] = '\0';
-		pos = msg;
-		for (i = 0; freqs && freqs[i]; i++) {
-			int ret;
-			ret = os_snprintf(pos, msg + sizeof(msg) - pos, " %d",
-					  freqs[i]);
-			if (ret < 0 || ret >= msg + sizeof(msg) - pos)
-				break;
-			pos += ret;
+		if (data->scan_interval == data->short_interval && count < 2) {
+			os_free(freqs);
+			freqs = NULL;
+			wpa_printf(MSG_DEBUG,
+				   "bgscan_learn: Scanning all frequencies");
+		} else {
+			freqs = bgscan_learn_get_probe_freq(data, freqs, count);
+
+			msg[0] = '\0';
+			pos = msg;
+			for (i = 0; freqs && freqs[i]; i++) {
+				int ret;
+				ret = os_snprintf(pos, msg + sizeof(msg) - pos,
+						  " %d", freqs[i]);
+				if (ret < 0 ||
+				    ret >= msg + sizeof(msg) - pos)
+					break;
+				pos += ret;
+			}
+			pos[0] = '\0';
+
+			wpa_printf(MSG_DEBUG, "bgscan learn: "
+				   "Scanning frequencies:%s",
+				   msg);
 		}
-		pos[0] = '\0';
-		wpa_printf(MSG_DEBUG, "bgscan learn: Scanning frequencies:%s",
-			   msg);
+
 		params.freqs = freqs;
 	}
 
