@@ -99,6 +99,24 @@ void wpa_supplicant_stop_countermeasures(void *eloop_ctx, void *sock_ctx)
 	}
 }
 
+void wpa_supplicant_mark_roaming(struct wpa_supplicant *wpa_s)
+{
+	wpa_s->roaming_in_progress = 1;
+	os_memcpy(wpa_s->prev_bssid, wpa_s->bssid, ETH_ALEN);
+	wpa_s->prev_ssid = wpa_s->current_ssid;
+	wpa_dbg(wpa_s, MSG_DEBUG, "Saving prev AP info for roaming recovery - "
+		"SSID ID: %d BSSID: " MACSTR,
+		wpa_s->prev_ssid->id, MAC2STR(wpa_s->prev_bssid));
+}
+
+void wpa_supplicant_clear_roaming(struct wpa_supplicant *wpa_s,
+				  int ignore_deauth_event)
+{
+	wpa_s->roaming_in_progress = 0;
+	wpa_s->ignore_deauth_event = ignore_deauth_event;
+	wpa_s->prev_ssid = NULL;
+	os_memset(wpa_s->prev_bssid, 0, ETH_ALEN);
+}
 
 void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s)
 {
@@ -838,13 +856,16 @@ int wpa_supplicant_connect(struct wpa_supplicant *wpa_s,
 		wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_OVERLAP
 			"PBC session overlap");
 #ifdef CONFIG_P2P
-		if (wpas_p2p_notif_pbc_overlap(wpa_s) == 1)
+		if (wpas_p2p_notif_pbc_overlap(wpa_s) == 1) {
+			wpa_supplicant_clear_roaming(wpa_s, 0);
 			return -1;
+		}
 #endif /* CONFIG_P2P */
 
 #ifdef CONFIG_WPS
 		wpas_wps_cancel(wpa_s);
 #endif /* CONFIG_WPS */
+		wpa_supplicant_clear_roaming(wpa_s, 0);
 		return -1;
 	}
 
@@ -861,7 +882,7 @@ int wpa_supplicant_connect(struct wpa_supplicant *wpa_s,
 	      0))) {
 		if (wpa_supplicant_scard_init(wpa_s, ssid)) {
 			wpa_supplicant_req_new_scan(wpa_s, 10, 0);
-			return 0;
+			wpa_supplicant_clear_roaming(wpa_s, 0);
 		}
 		wpa_msg(wpa_s, MSG_DEBUG, "Request association: "
 			"reassociate: %d  selected: "MACSTR "  bssid: " MACSTR
@@ -873,6 +894,7 @@ int wpa_supplicant_connect(struct wpa_supplicant *wpa_s,
 	} else {
 		wpa_dbg(wpa_s, MSG_DEBUG, "Already associated with the "
 			"selected AP");
+		wpa_supplicant_clear_roaming(wpa_s, 0);
 	}
 
 	return 0;
@@ -1007,6 +1029,7 @@ static int wpa_supplicant_need_to_roam(struct wpa_supplicant *wpa_s,
 		return 0;
 	}
 
+	wpa_supplicant_mark_roaming(wpa_s);
 	return 1;
 #else /* CONFIG_NO_ROAMING */
 	return 0;
@@ -2290,8 +2313,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 			break;
 		}
 #endif /* CONFIG_AP */
-		wpa_supplicant_event_disassoc(wpa_s, reason_code,
-					      locally_generated);
+
 #ifdef CONFIG_P2P
 		if (event == EVENT_DEAUTH && data) {
 			wpas_p2p_deauth_notif(wpa_s, data->deauth_info.addr,
@@ -2301,6 +2323,17 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 					      locally_generated);
 		}
 #endif /* CONFIG_P2P */
+
+		if (data->deauth_info.reason_code
+		    == WLAN_REASON_PREV_AUTH_NOT_VALID &&
+		    wpa_s->ignore_deauth_event) {
+			wpa_dbg(wpa_s, MSG_DEBUG, "Ignore deauth event"
+				" with reason=2");
+			wpa_s->ignore_deauth_event = 0;
+		} else {
+			wpa_supplicant_event_disassoc(wpa_s, reason_code,
+						      locally_generated);
+		}
 		break;
 	case EVENT_MICHAEL_MIC_FAILURE:
 		wpa_supplicant_event_michael_mic_failure(wpa_s, data);

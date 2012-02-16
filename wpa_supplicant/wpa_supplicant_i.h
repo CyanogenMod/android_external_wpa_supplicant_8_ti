@@ -284,8 +284,13 @@ struct wpa_supplicant {
 	u8 bssid[ETH_ALEN];
 	u8 pending_bssid[ETH_ALEN]; /* If wpa_state == WPA_ASSOCIATING, this
 				     * field contains the target BSSID. */
-	int reassociate; /* reassociation requested */
-	int roaming; /* roaming requested */
+	int roaming_in_progress;
+	int ignore_deauth_event;
+	u8 prev_bssid[ETH_ALEN];     /* BSSID being roamed from */
+	struct wpa_ssid *prev_ssid;  /* SSID being roamed from */
+
+	int reassociate;  /* reassociation requested */
+	int roaming;      /* roaming requested */
 	int disconnected; /* all connections disabled; i.e., do no reassociate
 			   * before this has been cleared */
 	struct wpa_ssid *current_ssid;
@@ -682,6 +687,9 @@ int wpa_supplicant_ctrl_iface_ctrl_rsp_handle(struct wpa_supplicant *wpa_s,
 					      const char *value);
 
 /* events.c */
+void wpa_supplicant_mark_roaming(struct wpa_supplicant *wpa_s);
+void wpa_supplicant_clear_roaming(struct wpa_supplicant *wpa_s,
+				  int ignore_deauth_event);
 void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s);
 int wpa_supplicant_connect(struct wpa_supplicant *wpa_s,
 			   struct wpa_bss *selected,
