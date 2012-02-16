@@ -2004,7 +2004,8 @@ static int could_be_psk_mismatch(struct wpa_supplicant *wpa_s, u16 reason_code,
 
 static void wpa_supplicant_event_disassoc_finish(struct wpa_supplicant *wpa_s,
 						 u16 reason_code,
-						 int locally_generated)
+						 int locally_generated,
+						 const u8 *addr)
 {
 	const u8 *bssid;
 	int authenticating;
@@ -2026,6 +2027,13 @@ static void wpa_supplicant_event_disassoc_finish(struct wpa_supplicant *wpa_s,
 		 */
 		wpa_dbg(wpa_s, MSG_DEBUG, "Disconnect event - ignore in "
 			"IBSS/WPA-None mode");
+		return;
+	}
+
+	if (addr && wpa_s->bssid && os_memcmp(wpa_s->bssid, addr, ETH_ALEN)) {
+		/* This may occur during roaming */
+		wpa_dbg(wpa_s, MSG_DEBUG, "Ignore disconnect from"
+			" a BSS which is not the current one");
 		return;
 	}
 
@@ -2502,7 +2510,7 @@ static void wpas_event_disconnect(struct wpa_supplicant *wpa_s, const u8 *addr,
 #endif /* CONFIG_P2P */
 
 	wpa_supplicant_event_disassoc_finish(wpa_s, reason_code,
-					     locally_generated);
+					     locally_generated, addr);
 }
 
 
