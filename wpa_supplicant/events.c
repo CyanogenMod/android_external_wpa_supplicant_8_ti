@@ -1737,7 +1737,8 @@ static int disconnect_reason_recoverable(u16 reason_code)
 
 static void wpa_supplicant_event_disassoc(struct wpa_supplicant *wpa_s,
 					  u16 reason_code,
-					  int locally_generated)
+					  int locally_generated,
+					  const u8 *addr)
 {
 	const u8 *bssid;
 	int authenticating;
@@ -1756,6 +1757,13 @@ static void wpa_supplicant_event_disassoc(struct wpa_supplicant *wpa_s,
 		 */
 		wpa_dbg(wpa_s, MSG_DEBUG, "Disconnect event - ignore in "
 			"IBSS/WPA-None mode");
+		return;
+	}
+
+	if (addr && wpa_s->bssid && os_memcmp(wpa_s->bssid, addr, ETH_ALEN)) {
+		/* This may occur during roaming */
+		wpa_dbg(wpa_s, MSG_DEBUG, "Ignore disconnect from"
+			" a BSS which is not the current one");
 		return;
 	}
 
@@ -2331,8 +2339,10 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 				" with reason=2");
 			wpa_s->ignore_deauth_event = 0;
 		} else {
-			wpa_supplicant_event_disassoc(wpa_s, reason_code,
-						      locally_generated);
+			wpa_supplicant_event_disassoc(wpa_s,
+						      reason_code,
+						      locally_generated,
+						      data->deauth_info.addr);
 		}
 		break;
 	case EVENT_MICHAEL_MIC_FAILURE:
