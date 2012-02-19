@@ -705,11 +705,16 @@ static struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
 					    int i, struct wpa_bss *bss,
 					    struct wpa_ssid *group)
 {
-	u8 wpa_ie_len, rsn_ie_len;
+	const u8 *ssid_;
+	u8 wpa_ie_len, rsn_ie_len, ssid_len;
 	int wpa;
 	struct wpa_blacklist *e;
 	const u8 *ie;
 	struct wpa_ssid *ssid;
+
+	ie = wpa_bss_get_ie(bss, WLAN_EID_SSID);
+	ssid_ = ie ? ie + 2 : (u8 *) "";
+	ssid_len = ie ? ie[1] : 0;
 
 	ie = wpa_bss_get_vendor_ie(bss, WPA_IE_VENDOR_TYPE);
 	wpa_ie_len = ie ? ie[1] : 0;
@@ -762,6 +767,14 @@ static struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
 
 	if (disallowed_ssid(wpa_s, bss->ssid, bss->ssid_len)) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - SSID disallowed");
+		return NULL;
+	}
+
+	if (wpa_s->wpa_state >= WPA_AUTHENTICATING &&
+	    wpa_s->current_ssid &&
+	    os_memcmp(wpa_s->current_ssid->ssid, ssid_, ssid_len) != 0) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - block roaming to "
+			"a different SSID while connected");
 		return NULL;
 	}
 
