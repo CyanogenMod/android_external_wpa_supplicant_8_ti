@@ -665,6 +665,14 @@ static struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
 		return NULL;
 	}
 
+	if (wpa_s->wpa_state >= WPA_AUTHENTICATING &&
+	    wpa_s->current_ssid &&
+	    os_memcmp(wpa_s->current_ssid->ssid, ssid_, ssid_len) != 0) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - block roaming to "
+			"a different SSID while connected");
+		return NULL;
+	}
+
 	wpa = wpa_ie_len > 0 || rsn_ie_len > 0;
 
 	for (ssid = group; ssid; ssid = ssid->pnext) {
