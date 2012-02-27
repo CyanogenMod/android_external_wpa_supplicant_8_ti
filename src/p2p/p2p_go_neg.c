@@ -534,6 +534,14 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 			return;
 		}
 
+		if (dev->dialog_token == msg.dialog_token) {
+			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
+				"P2P: Do not reply since dialog token %d "
+				"was already used", msg.dialog_token);
+			p2p_parse_free(&msg);
+			return;
+		}
+
 		go = p2p_go_det(p2p->go_intent, *msg.go_intent);
 		if (go < 0) {
 			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
