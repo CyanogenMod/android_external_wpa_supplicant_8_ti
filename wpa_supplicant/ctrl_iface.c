@@ -4121,6 +4121,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 			level = MSG_EXCESSIVE;
 		wpa_hexdump_ascii(level, "RX ctrl_iface",
 				  (const u8 *) buf, os_strlen(buf));
+		wpa_printf(level, "ctrl_iface: %s", buf);
 	}
 
 	reply = os_malloc(reply_size);
