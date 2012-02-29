@@ -1163,9 +1163,9 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
 				return 0;
 			}
 #endif /* CONFIG_P2P */
-			if (wpa_supplicant_req_sched_scan(wpa_s))
-				wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
-							    timeout_usec);
+			wpa_supplicant_req_sched_scan(wpa_s);
+			wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
+						    timeout_usec);
 		}
 	}
 	return 0;
