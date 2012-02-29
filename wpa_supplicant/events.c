@@ -1422,6 +1422,11 @@ int wpas_select_network_from_last_scan(struct wpa_supplicant *wpa_s,
 			if (wpa_ssid_scanned(wpa_s) > max_sched_scan_ssids)
 				wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
 							    timeout_usec);
+
+#ifdef ANDROID
+			wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
+						    timeout_usec);
+#endif
 		}
 	}
 	return 0;
