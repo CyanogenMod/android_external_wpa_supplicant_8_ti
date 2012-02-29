@@ -585,8 +585,9 @@ int p2p_add_device(struct p2p_data *p2p, const u8 *addr, int freq,
 	struct p2p_device *dev;
 	struct p2p_message msg;
 	const u8 *p2p_dev_addr;
-	int i;
+	int i, changed = 0;
 	struct os_time time_now, time_tmp_age, entry_ts;
+	enum p2p_go_state old_state;
 
 	os_memset(&msg, 0, sizeof(msg));
 	if (p2p_parse_ies(ies, ies_len, &msg)) {
@@ -672,12 +673,22 @@ int p2p_add_device(struct p2p_data *p2p, const u8 *addr, int freq,
 			"results (" MACSTR " %d -> %d MHz (DS param %d)",
 			MAC2STR(dev->info.p2p_device_addr), dev->listen_freq,
 			freq, msg.ds_params ? *msg.ds_params : -1);
+		changed = 1;
 	}
+
 	if (scan_res) {
 		dev->listen_freq = freq;
 		if (msg.group_info)
 			dev->oper_freq = freq;
+
+		old_state = dev->go_state;
+		if (msg.group_info)
+			dev->go_state = REMOTE_GO;
+		else
+			dev->go_state = UNKNOWN_GO;
+		changed |= (old_state != dev->go_state);
 	}
+
 	dev->info.level = level;
 
 	p2p_copy_wps_info(dev, 0, &msg);
@@ -706,7 +717,7 @@ int p2p_add_device(struct p2p_data *p2p, const u8 *addr, int freq,
 	if (p2p_pending_sd_req(p2p, dev))
 		dev->flags |= P2P_DEV_SD_SCHEDULE;
 
-	if (dev->flags & P2P_DEV_REPORTED)
+	if ((dev->flags & P2P_DEV_REPORTED) && !changed)
 		return 0;
 
 	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
