@@ -1397,6 +1397,14 @@ int wpas_wps_scan_pbc_overlap(struct wpa_supplicant *wpa_s,
 	if (!eap_is_wps_pbc_enrollee(&ssid->eap))
 		return 0;
 
+#ifdef CONFIG_P2P
+	if (wpa_s->p2p_in_provisioning) {
+		wpa_printf(MSG_DEBUG,
+			   "WPS: Don't check for PBC overlap in P2P");
+		return 0;
+	}
+#endif
+
 	wpa_printf(MSG_DEBUG, "WPS: Check whether PBC session overlap is "
 		   "present in scan results; selected BSSID " MACSTR,
 		   MAC2STR(selected->bssid));
