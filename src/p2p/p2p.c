@@ -753,6 +753,11 @@ int p2p_add_device(struct p2p_data *p2p, const u8 *addr, int freq,
 			break;
 	}
 
+	if (msg.wfd_subelems) {
+		wpabuf_free(dev->info.wfd_subelems);
+		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
+	}
+
 	if (scan_res) {
 		p2p_add_group_clients(p2p, p2p_dev_addr, addr, freq,
 				      msg.group_info, msg.group_info_len);
@@ -809,6 +814,8 @@ static void p2p_device_free(struct p2p_data *p2p, struct p2p_device *dev)
 		wpabuf_free(dev->info.wps_vendor_ext[i]);
 		dev->info.wps_vendor_ext[i] = NULL;
 	}
+
+	wpabuf_free(dev->info.wfd_subelems);
 
 	os_free(dev);
 }
@@ -1454,6 +1461,11 @@ void p2p_add_dev_info(struct p2p_data *p2p, const u8 *addr,
 		}
 	}
 
+	if (msg->wfd_subelems) {
+		wpabuf_free(dev->info.wfd_subelems);
+		dev->info.wfd_subelems = wpabuf_dup(msg->wfd_subelems);
+	}
+
 	if (dev->flags & P2P_DEV_PROBE_REQ_ONLY) {
 		dev->flags &= ~P2P_DEV_PROBE_REQ_ONLY;
 		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
@@ -1791,6 +1803,11 @@ static void p2p_add_dev_from_probe_req(struct p2p_data *p2p, const u8 *addr,
 
 	p2p_copy_wps_info(dev, 1, &msg);
 
+	if (msg.wfd_subelems) {
+		wpabuf_free(dev->info.wfd_subelems);
+		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
+	}
+
 	p2p_parse_free(&msg);
 
 	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
@@ -1889,8 +1906,14 @@ struct wpabuf * p2p_build_probe_resp_ies(struct p2p_data *p2p)
 	struct wpabuf *buf;
 	u8 *len;
 	int pw_id = -1;
+	size_t extra = 0;
 
-	buf = wpabuf_alloc(1000);
+#ifdef CONFIG_WIFI_DISPLAY
+	if (p2p->wfd_ie_probe_resp)
+		extra = wpabuf_len(p2p->wfd_ie_probe_resp);
+#endif /* CONFIG_WIFI_DISPLAY */
+
+	buf = wpabuf_alloc(1000 + extra);
 	if (buf == NULL)
 		return NULL;
 
@@ -1900,6 +1923,11 @@ struct wpabuf * p2p_build_probe_resp_ies(struct p2p_data *p2p)
 	}
 
 	p2p_build_wps_ie(p2p, buf, pw_id, 1);
+
+#ifdef CONFIG_WIFI_DISPLAY
+	if (p2p->wfd_ie_probe_resp)
+		wpabuf_put_buf(buf, p2p->wfd_ie_probe_resp);
+#endif /* CONFIG_WIFI_DISPLAY */
 
 	/* P2P IE */
 	len = p2p_buf_add_ie_hdr(buf);
@@ -2185,9 +2213,15 @@ int p2p_assoc_req_ie(struct p2p_data *p2p, const u8 *bssid, u8 *buf,
 	struct p2p_device *peer;
 	size_t tmplen;
 	int res;
+	size_t extra = 0;
 
 	if (!p2p_group)
 		return p2p_assoc_req_ie_wlan_ap(p2p, bssid, buf, len, p2p_ie);
+
+#ifdef CONFIG_WIFI_DISPLAY
+	if (p2p->wfd_ie_assoc_req)
+		extra = wpabuf_len(p2p->wfd_ie_assoc_req);
+#endif /* CONFIG_WIFI_DISPLAY */
 
 	/*
 	 * (Re)Association Request - P2P IE
@@ -2195,9 +2229,14 @@ int p2p_assoc_req_ie(struct p2p_data *p2p, const u8 *bssid, u8 *buf,
 	 * Extended Listen Timing (may be present)
 	 * P2P Device Info attribute (shall be present)
 	 */
-	tmp = wpabuf_alloc(200);
+	tmp = wpabuf_alloc(200 + extra);
 	if (tmp == NULL)
 		return -1;
+
+#ifdef CONFIG_WIFI_DISPLAY
+	if (p2p->wfd_ie_assoc_req)
+		wpabuf_put_buf(tmp, p2p->wfd_ie_assoc_req);
+#endif /* CONFIG_WIFI_DISPLAY */
 
 	peer = bssid ? p2p_get_device(p2p, bssid) : NULL;
 
@@ -2391,6 +2430,20 @@ struct p2p_data * p2p_init(const struct p2p_config *cfg)
 
 void p2p_deinit(struct p2p_data *p2p)
 {
+#ifdef CONFIG_WIFI_DISPLAY
+	wpabuf_free(p2p->wfd_ie_beacon);
+	wpabuf_free(p2p->wfd_ie_probe_req);
+	wpabuf_free(p2p->wfd_ie_probe_resp);
+	wpabuf_free(p2p->wfd_ie_assoc_req);
+	wpabuf_free(p2p->wfd_ie_invitation);
+	wpabuf_free(p2p->wfd_ie_prov_disc_req);
+	wpabuf_free(p2p->wfd_ie_prov_disc_resp);
+	wpabuf_free(p2p->wfd_ie_go_neg);
+	wpabuf_free(p2p->wfd_dev_info);
+	wpabuf_free(p2p->wfd_assoc_bssid);
+	wpabuf_free(p2p->wfd_coupled_sink_info);
+#endif /* CONFIG_WIFI_DISPLAY */
+
 	eloop_cancel_timeout(p2p_expiration_timeout, p2p, NULL);
 	eloop_cancel_timeout(p2p_ext_listen_timeout, p2p, NULL);
 	eloop_cancel_timeout(p2p_scan_timeout, p2p, NULL);
@@ -2797,7 +2850,14 @@ void p2p_scan_res_handled(struct p2p_data *p2p)
 
 void p2p_scan_ie(struct p2p_data *p2p, struct wpabuf *ies, const u8 *dev_id)
 {
-	u8 *len = p2p_buf_add_ie_hdr(ies);
+	u8 *len;
+
+#ifdef CONFIG_WIFI_DISPLAY
+	if (p2p->wfd_ie_probe_req)
+		wpabuf_put_buf(ies, p2p->wfd_ie_probe_req);
+#endif /* CONFIG_WIFI_DISPLAY */
+
+	len = p2p_buf_add_ie_hdr(ies);
 	p2p_buf_add_capability(ies, p2p->dev_capab &
 			       ~P2P_DEV_CAPAB_CLIENT_DISCOVERABILITY, 0);
 	if (dev_id)
@@ -2816,7 +2876,14 @@ void p2p_scan_ie(struct p2p_data *p2p, struct wpabuf *ies, const u8 *dev_id)
 
 size_t p2p_scan_ie_buf_len(struct p2p_data *p2p)
 {
-	return 100;
+	size_t len = 100;
+
+#ifdef CONFIG_WIFI_DISPLAY
+	if (p2p && p2p->wfd_ie_probe_req)
+		len += wpabuf_len(p2p->wfd_ie_probe_req);
+#endif /* CONFIG_WIFI_DISPLAY */
+
+	return len;
 }
 
 
@@ -3492,6 +3559,24 @@ int p2p_get_peer_info_txt(const struct p2p_peer_info *info,
 		pos += res;
 	}
 
+#ifdef CONFIG_WIFI_DISPLAY
+	if (dev->info.wfd_subelems) {
+		res = os_snprintf(pos, end - pos, "wfd_subelems=");
+		if (res < 0 || res >= end - pos)
+			return pos - buf;
+		pos += res;
+
+		pos += wpa_snprintf_hex(pos, end - pos,
+					wpabuf_head(dev->info.wfd_subelems),
+					wpabuf_len(dev->info.wfd_subelems));
+
+		res = os_snprintf(pos, end - pos, "\n");
+		if (res < 0 || res >= end - pos)
+			return pos - buf;
+		pos += res;
+	}
+#endif /* CONFIG_WIFI_DISPLAY */
+
 	return pos - buf;
 }
 
@@ -4110,3 +4195,128 @@ void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
 		p2p->client_timeout = client_timeout;
 	}
 }
+
+
+#ifdef CONFIG_WIFI_DISPLAY
+
+static void p2p_update_wfd_ie_groups(struct p2p_data *p2p)
+{
+	size_t g;
+	struct p2p_group *group;
+
+	for (g = 0; g < p2p->num_groups; g++) {
+		group = p2p->groups[g];
+		p2p_group_update_ies(group);
+	}
+}
+
+
+int p2p_set_wfd_ie_beacon(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_beacon);
+	p2p->wfd_ie_beacon = ie;
+	p2p_update_wfd_ie_groups(p2p);
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_probe_req(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_probe_req);
+	p2p->wfd_ie_probe_req = ie;
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_probe_resp(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_probe_resp);
+	p2p->wfd_ie_probe_resp = ie;
+	p2p_update_wfd_ie_groups(p2p);
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_assoc_req(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_assoc_req);
+	p2p->wfd_ie_assoc_req = ie;
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_invitation(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_invitation);
+	p2p->wfd_ie_invitation = ie;
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_prov_disc_req(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_prov_disc_req);
+	p2p->wfd_ie_prov_disc_req = ie;
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_prov_disc_resp(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_prov_disc_resp);
+	p2p->wfd_ie_prov_disc_resp = ie;
+	return 0;
+}
+
+
+int p2p_set_wfd_ie_go_neg(struct p2p_data *p2p, struct wpabuf *ie)
+{
+	wpabuf_free(p2p->wfd_ie_go_neg);
+	p2p->wfd_ie_go_neg = ie;
+	return 0;
+}
+
+
+int p2p_set_wfd_dev_info(struct p2p_data *p2p, const struct wpabuf *elem)
+{
+	wpabuf_free(p2p->wfd_dev_info);
+	if (elem) {
+		p2p->wfd_dev_info = wpabuf_dup(elem);
+		if (p2p->wfd_dev_info == NULL)
+			return -1;
+	} else
+		p2p->wfd_dev_info = NULL;
+
+	return 0;
+}
+
+
+int p2p_set_wfd_assoc_bssid(struct p2p_data *p2p, const struct wpabuf *elem)
+{
+	wpabuf_free(p2p->wfd_assoc_bssid);
+	if (elem) {
+		p2p->wfd_assoc_bssid = wpabuf_dup(elem);
+		if (p2p->wfd_assoc_bssid == NULL)
+			return -1;
+	} else
+		p2p->wfd_assoc_bssid = NULL;
+
+	return 0;
+}
+
+
+int p2p_set_wfd_coupled_sink_info(struct p2p_data *p2p,
+				  const struct wpabuf *elem)
+{
+	wpabuf_free(p2p->wfd_coupled_sink_info);
+	if (elem) {
+		p2p->wfd_coupled_sink_info = wpabuf_dup(elem);
+		if (p2p->wfd_coupled_sink_info == NULL)
+			return -1;
+	} else
+		p2p->wfd_coupled_sink_info = NULL;
+
+	return 0;
+}
+
+#endif /* CONFIG_WIFI_DISPLAY */
