@@ -415,6 +415,63 @@ wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s,
 }
 
 
+static struct hostapd_hw_modes * get_mode(struct hostapd_hw_modes *modes,
+					  u16 num_modes,
+					  enum hostapd_hw_mode mode)
+{
+	u16 i;
+
+	for (i = 0; i < num_modes; i++) {
+		if (modes[i].mode == mode)
+			return &modes[i];
+	}
+
+	return NULL;
+}
+
+
+static void wpa_setband_scan_freqs_list(struct wpa_supplicant *wpa_s,
+					enum hostapd_hw_mode band,
+					struct wpa_driver_scan_params *params)
+{
+	/* Include only supported channels for the specified band */
+	struct hostapd_hw_modes *mode;
+	int count, i;
+
+	mode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes, band);
+	if (mode == NULL) {
+		/* No channels supported in this band - use empty list */
+		params->freqs = os_zalloc(sizeof(int));
+		return;
+	}
+
+	params->freqs = os_zalloc((mode->num_channels + 1) * sizeof(int));
+	if (params->freqs == NULL)
+		return;
+	for (count = 0, i = 0; i < mode->num_channels; i++) {
+		if (mode->channels[i].flag & HOSTAPD_CHAN_DISABLED)
+			continue;
+		params->freqs[count++] = mode->channels[i].freq;
+	}
+}
+
+
+static void wpa_setband_scan_freqs(struct wpa_supplicant *wpa_s,
+				   struct wpa_driver_scan_params *params)
+{
+	if (wpa_s->hw.modes == NULL)
+		return; /* unknown what channels the driver supports */
+	if (params->freqs)
+		return; /* already using a limited channel set */
+	if (wpa_s->setband == WPA_SETBAND_5G)
+		wpa_setband_scan_freqs_list(wpa_s, HOSTAPD_MODE_IEEE80211A,
+					    params);
+	else if (wpa_s->setband == WPA_SETBAND_2G)
+		wpa_setband_scan_freqs_list(wpa_s, HOSTAPD_MODE_IEEE80211G,
+					    params);
+}
+
+
 static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
@@ -647,6 +704,7 @@ ssid_list_set:
 	} else
 		os_free(wpa_s->next_scan_freqs);
 	wpa_s->next_scan_freqs = NULL;
+	wpa_setband_scan_freqs(wpa_s, &params);
 
 	params.filter_ssids = wpa_supplicant_build_filter_ssids(
 		wpa_s->conf, &params.num_filter_ssids);
@@ -909,6 +967,8 @@ start_scan:
 	scan_params = &params;
 
 scan:
+
+	wpa_setband_scan_freqs(wpa_s, scan_params);
 
 	if (wpa_s->sched_scan_intervals_supported) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "Starting sched scan: "
