@@ -1186,6 +1186,21 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
 		} else {
 			int timeout_sec = wpa_s->scan_interval;
 			int timeout_usec = 0;
+
+			if (wpa_s->roaming && (wpa_s->num_roaming_scans > 1)) {
+				wpa_dbg(wpa_s, MSG_DEBUG, "No roaming candidate"
+					" found. Attempt another scan");
+				wpa_s->num_roaming_scans--;
+				wpa_supplicant_req_new_scan(wpa_s, 0, 0);
+				return 0;
+			} else if (wpa_s->roaming) {
+				wpa_dbg(wpa_s, MSG_DEBUG,
+					"No roaming candidate found "
+					"after multiple scans. Disconnect");
+				wpa_supplicant_deauthenticate(wpa_s,
+					      WLAN_REASON_DEAUTH_LEAVING);
+				/* Fall through so periodic scan won't stop */
+			}
 #ifdef CONFIG_P2P
 			if (wpas_p2p_scan_no_go_seen(wpa_s) == 1)
 				return 0;
@@ -2352,6 +2367,8 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 						      locally_generated,
 						      data->deauth_info.addr);
 		}
+
+		wpa_s->roaming = 0;
 		break;
 	case EVENT_MICHAEL_MIC_FAILURE:
 		wpa_supplicant_event_michael_mic_failure(wpa_s, data);
@@ -2735,6 +2752,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 	case EVENT_START_ROAMING:
 		if (!is_zero_ether_addr(wpa_s->bssid)) {
 			wpa_s->roaming = 1;
+			wpa_s->num_roaming_scans = 2;
 			wpa_supplicant_req_scan(wpa_s, 0, 0);
 		}
 		break;
