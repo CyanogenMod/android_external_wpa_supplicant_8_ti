@@ -271,8 +271,9 @@ static void bgscan_learn_timeout(void *eloop_ctx, void *timeout_ctx)
 	struct wpa_supplicant *wpa_s = data->wpa_s;
 	struct wpa_driver_scan_params params;
 	int *freqs = NULL;
-	size_t count, i;
+	size_t count, i, bss_count = 0;
 	char msg[100], *pos;
+	struct bgscan_learn_bss *bss;
 
 	os_memset(&params, 0, sizeof(params));
 	params.num_ssids = 1;
@@ -282,10 +283,14 @@ static void bgscan_learn_timeout(void *eloop_ctx, void *timeout_ctx)
 		params.freqs = data->ssid->scan_freq;
 	else {
 		freqs = bgscan_learn_get_freqs(data, &count);
-		wpa_printf(MSG_DEBUG, "bgscan learn: BSSes in this ESS have "
-			   "been seen on %u channels", (unsigned int) count);
 
-		if (data->scan_interval == data->short_interval && count < 2) {
+		dl_list_for_each(bss, &data->bss, struct bgscan_learn_bss, list)
+			bss_count++;
+
+		wpa_printf(MSG_DEBUG, "bgscan learn: %d BSSes in this ESS have "
+			   "been seen on %u channels", (unsigned int) bss_count, (unsigned int) count);
+
+		if (data->scan_interval == data->short_interval && bss_count < 2) {
 			os_free(freqs);
 			freqs = NULL;
 			wpa_printf(MSG_DEBUG,
