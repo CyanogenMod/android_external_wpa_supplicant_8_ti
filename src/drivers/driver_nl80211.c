@@ -5497,15 +5497,16 @@ static int wpa_driver_nl80211_set_ap(void *priv,
 			    params->ap_max_inactivity);
 	}
 
+	nl80211_set_bss(bss, params->cts_protect, params->preamble,
+			params->short_slot_time, params->ht_opmode,
+			params->isolate, params->basic_rates);
+
 	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
 	if (ret) {
 		wpa_printf(MSG_DEBUG, "nl80211: Beacon set failed: %d (%s)",
 			   ret, strerror(-ret));
 	} else {
 		bss->beacon_set = 1;
-		nl80211_set_bss(bss, params->cts_protect, params->preamble,
-				params->short_slot_time, params->ht_opmode,
-				params->isolate, params->basic_rates);
 	}
 	return ret;
  nla_put_failure:
