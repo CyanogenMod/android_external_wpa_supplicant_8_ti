@@ -7079,6 +7079,8 @@ done:
 		wpa_printf(MSG_DEBUG, "nl80211: Failed to register Action "
 			   "frame processing - ignore for now");
 
+	nl80211_disable_11b_rates(drv, drv->ifindex, is_p2p_interface(nlmode));
+
 	return 0;
 }
 
