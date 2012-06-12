@@ -346,9 +346,18 @@ void sme_event_auth(struct wpa_supplicant *wpa_s, union wpa_event_data *data)
 			return;
 
 		case WLAN_AUTH_SHARED_KEY:
-			wpa_s->current_ssid->auth_alg = WPA_AUTH_ALG_LEAP;
+			if (wpa_s->current_ssid->auth_alg == WPA_AUTH_ALG_OPEN) {
+				wpa_s->current_ssid->auth_alg =
+					WPA_AUTH_ALG_SHARED;
+				wpa_dbg(wpa_s, MSG_DEBUG,
+					"SME: Trying SHARED auth");
+			} else {
+				wpa_s->current_ssid->auth_alg =
+					WPA_AUTH_ALG_LEAP;
+				wpa_dbg(wpa_s, MSG_DEBUG,
+					"SME: Trying LEAP auth");
+			}
 
-			wpa_dbg(wpa_s, MSG_DEBUG, "SME: Trying LEAP auth");
 			wpa_supplicant_associate(wpa_s, wpa_s->current_bss,
 						 wpa_s->current_ssid);
 			return;
