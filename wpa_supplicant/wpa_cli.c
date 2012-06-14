@@ -2139,7 +2139,17 @@ static int wpa_cli_cmd_p2p_connect(struct wpa_ctrl *ctrl, int argc,
 		return -1;
 	}
 
-	if (argc > 4)
+    if (argc > 6)
+		res = os_snprintf(cmd, sizeof(cmd),
+				  "P2P_CONNECT %s %s %s %s %s %s %s",
+				  argv[0], argv[1], argv[2], argv[3],
+				  argv[4], argv[5], argv[6]);
+	else if (argc > 5)
+		res = os_snprintf(cmd, sizeof(cmd),
+				  "P2P_CONNECT %s %s %s %s %s %s",
+				  argv[0], argv[1], argv[2], argv[3],
+				  argv[4], argv[5]);
+	else if (argc > 4)
 		res = os_snprintf(cmd, sizeof(cmd),
 				  "P2P_CONNECT %s %s %s %s %s",
 				  argv[0], argv[1], argv[2], argv[3],
