@@ -5248,6 +5248,14 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 				wpa_s->setband = WPA_SETBAND_5G;
 			else if (val == 2)
 				wpa_s->setband = WPA_SETBAND_2G;
+
+			if (wpa_s->current_bss &&
+			    !wpa_bss_in_current_band(wpa_s,
+						     wpa_s->current_bss))
+				wpa_supplicant_disable_network(wpa_s,
+							wpa_s->current_ssid);
+
+			wpa_supplicant_select_network(wpa_s, NULL);
 			ret = os_snprintf(buf, buflen, "%s\n", "OK");
 		}
 	}
