@@ -4090,6 +4090,11 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 			wpa_s->setband = WPA_SETBAND_2G;
 		else
 			ret = -1;
+
+		if (wpa_s->current_bss && !wpa_bss_in_current_band(wpa_s, wpa_s->current_bss))
+			wpa_supplicant_disable_network(wpa_s, wpa_s->current_ssid);
+
+		wpa_supplicant_select_network(wpa_s, NULL);
 	} else
 		ret = wpa_drv_driver_cmd(wpa_s, cmd, buf, buflen);
 	if (ret == 0)

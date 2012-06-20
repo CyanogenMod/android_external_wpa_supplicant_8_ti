@@ -464,6 +464,14 @@ static int wpa_bss_included_in_scan(const struct wpa_bss *bss,
 	return 1;
 }
 
+int wpa_bss_in_current_band(struct wpa_supplicant *wpa_s, struct wpa_bss *bss)
+{
+	if ((wpa_s->setband == WPA_SETBAND_2G && bss->freq > 2500) ||
+	    (wpa_s->setband == WPA_SETBAND_5G && bss->freq < 2500))
+		return 0;
+
+	return 1;
+}
 
 void wpa_bss_update_end(struct wpa_supplicant *wpa_s, struct scan_info *info,
 			int new_scan)
@@ -476,6 +484,12 @@ void wpa_bss_update_end(struct wpa_supplicant *wpa_s, struct scan_info *info,
 	dl_list_for_each_safe(bss, n, &wpa_s->bss, struct wpa_bss, list) {
 		if (wpa_bss_in_use(wpa_s, bss))
 			continue;
+		if (!wpa_bss_in_current_band(wpa_s, bss)) {
+			wpa_dbg(wpa_s, MSG_DEBUG, "BSS: Expire BSS %u due to "
+				"freq not in current band", bss->id);
+			wpa_bss_remove(wpa_s, bss, "non-selected band");
+			continue;
+		}
 		if (!wpa_bss_included_in_scan(bss, info))
 			continue; /* expire only BSSes that were scanned */
 		if (bss->last_update_idx < wpa_s->bss_update_idx)
