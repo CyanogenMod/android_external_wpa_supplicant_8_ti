@@ -26,6 +26,7 @@
 
 #include "config_ssid.h"
 #include "wps/wps.h"
+#include "common/wpa_common.h"
 
 
 struct wpa_cred {
@@ -517,6 +518,7 @@ struct wpa_config {
 	struct p2p_channel *p2p_pref_chan;
 
 	struct wpabuf *wps_vendor_ext_m1;
+	struct wpa_wmm_ac_params wmm_ac_params[4];
 
 #define MAX_WPS_VENDOR_EXT 10
 	/**

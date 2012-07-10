@@ -296,6 +296,13 @@ struct rsn_rdie {
 #pragma pack(pop)
 #endif /* _MSC_VER */
 
+struct wpa_wmm_ac_params {
+	int cwmin;
+	int cwmax;
+	int aifs;
+	int txop_limit; /* in units of 32us */
+	int admission_control_mandatory;
+};
 
 int wpa_eapol_key_mic(const u8 *key, int ver, const u8 *buf, size_t len,
 		      u8 *mic);
@@ -375,4 +382,6 @@ struct wpa_ft_ies {
 
 int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse);
 
+int wpa_config_wmm_ac(struct wpa_wmm_ac_params wmm_ac_params[], char *name,
+				 char *val);
 #endif /* WPA_COMMON_H */

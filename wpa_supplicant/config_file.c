@@ -382,6 +382,24 @@ struct wpa_config * wpa_config_read(const char *name)
 				continue;
 			}
 #endif /* CONFIG_NO_CONFIG_BLOBS */
+#ifdef CONFIG_P2P
+		} else if (os_strncmp(buf, "wme_ac_", 7) == 0 ||
+			   os_strncmp(buf, "wmm_ac_", 7) == 0) {
+			pos = os_strchr(buf, '=');
+			if (pos == NULL) {
+				wpa_printf(MSG_ERROR, "Line %d: invalid line '%s'",
+						line, buf);
+				errors++;
+				continue;
+			}
+			*pos = '\0';
+			pos++;
+			if (wpa_config_wmm_ac(config->wmm_ac_params, buf, pos)) {
+				wpa_printf(MSG_ERROR, "Line %d: invalid WMM "
+					   "ac item", line);
+				errors++;
+			}
+#endif /* CONFIG_P2P */
 		} else if (wpa_config_process_global(config, pos, line) < 0) {
 			wpa_printf(MSG_ERROR, "Line %d: Invalid configuration "
 				   "line '%s'.", line, pos);

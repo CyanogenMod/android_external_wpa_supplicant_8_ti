@@ -81,7 +81,7 @@ u8 * hostapd_eid_wmm(struct hostapd_data *hapd, u8 *eid)
 	/* fill in a parameter set record for each AC */
 	for (e = 0; e < 4; e++) {
 		struct wmm_ac_parameter *ac = &wmm->ac[e];
-		struct hostapd_wmm_ac_params *acp =
+		struct wpa_wmm_ac_params *acp =
 			&hapd->iconf->wmm_ac_params[e];
 
 		ac->aci_aifsn = wmm_aci_aifsn(acp->aifs,
