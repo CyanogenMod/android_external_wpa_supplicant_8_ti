@@ -4049,6 +4049,15 @@ p2p_get_peer_found(struct p2p_data *p2p, const u8 *addr, int next)
 	return &dev->info;
 }
 
+#ifdef ANDROID_P2P
+int p2p_search_in_progress(struct p2p_data *p2p)
+{
+	if (p2p == NULL)
+		return 0;
+
+	return p2p->state == P2P_SEARCH;
+}
+#endif
 
 int p2p_in_progress(struct p2p_data *p2p)
 {
