@@ -42,6 +42,8 @@ ifeq ($(BOARD_WLAN_DEVICE), mrvl)
 L_CFLAGS += -DANDROID_P2P
 endif
 
+L_CFLAGS += -DANDROID_P2P
+
 # Use Android specific directory for control interface sockets
 L_CFLAGS += -DCONFIG_CTRL_IFACE_CLIENT_DIR=\"/data/misc/wifi/sockets\"
 L_CFLAGS += -DCONFIG_CTRL_IFACE_DIR=\"/data/system/wpa_supplicant\"
