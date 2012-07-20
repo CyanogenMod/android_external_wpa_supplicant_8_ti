@@ -171,6 +171,9 @@ struct wpa_cred {
 #define CFG_CHANGED_P2P_LISTEN_CHANNEL BIT(11)
 #define CFG_CHANGED_P2P_OPER_CHANNEL BIT(12)
 #define CFG_CHANGED_P2P_PREF_CHAN BIT(13)
+#ifdef ANDROID_P2P
+#define CFG_CHANGED_IFACE_PRIORITY BIT(14)
+#endif
 
 /**
  * struct wpa_config - wpa_supplicant configuration data
@@ -694,6 +697,16 @@ struct wpa_config {
 	 * sched_scan_num_short_intervals - see sched_scan_short_interval
 	 */
 	int sched_scan_num_short_intervals;
+
+#ifdef ANDROID_P2P
+	/**
+	 * prioritize - Prioritize an Interface
+	 * Interface name of the interface that needs to be proritized; Useful
+	 * for resolving conflicts in connection. up to 16 octets encoded in
+	 * UTF-8
+	 */
+	char *prioritize;
+#endif
 };
 
 

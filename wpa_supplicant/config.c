@@ -1908,6 +1908,9 @@ void wpa_config_free(struct wpa_config *config)
 	wpabuf_free(config->wps_nfc_dh_pubkey);
 	wpabuf_free(config->wps_nfc_dh_privkey);
 	wpabuf_free(config->wps_nfc_dev_pw);
+#ifdef ANDROID_P2P
+	os_free(config->prioritize);
+#endif
 	os_free(config);
 }
 
@@ -2965,6 +2968,9 @@ static const struct global_parse_data global_fields[] = {
 	{ INT(p2p_group_idle), 0 },
 	{ FUNC(p2p_pref_chan), CFG_CHANGED_P2P_PREF_CHAN },
 #endif /* CONFIG_P2P */
+#ifdef ANDROID_P2P
+	{ STR_RANGE(prioritize, 0, 32), CFG_CHANGED_IFACE_PRIORITY },
+#endif
 	{ FUNC(country), CFG_CHANGED_COUNTRY },
 	{ INT(bss_max_count), 0 },
 	{ INT(bss_expiration_age), 0 },
