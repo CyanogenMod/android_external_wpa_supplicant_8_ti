@@ -42,7 +42,11 @@ static void p2p_scan_timeout(void *eloop_ctx, void *timeout_ctx);
  * P2P_PEER_EXPIRATION_AGE - Number of seconds after which inactive peer
  * entries will be removed
  */
+#ifdef ANDROID_P2P
+#define P2P_PEER_EXPIRATION_AGE 30
+#else
 #define P2P_PEER_EXPIRATION_AGE 300
+#endif
 
 #define P2P_PEER_EXPIRATION_INTERVAL (P2P_PEER_EXPIRATION_AGE / 2)
 
