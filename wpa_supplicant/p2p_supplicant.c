@@ -266,6 +266,11 @@ static void wpas_p2p_group_delete(struct wpa_supplicant *wpa_s, int silent)
 	case P2P_GROUP_REMOVAL_GO_ENDING_SESSION:
 		reason = " reason=GO_ENDING_SESSION";
 		break;
+#ifdef ANDROID_P2P
+	case P2P_GROUP_REMOVAL_FREQ_CONFLICT:
+		reason = " reason=FREQ_CONFLICT";
+		break;
+#endif
 	default:
 		reason = "";
 		break;
@@ -4896,6 +4901,48 @@ void wpas_p2p_notify_ap_sta_authorized(struct wpa_supplicant *wpa_s,
 	wpas_p2p_add_persistent_group_client(wpa_s, addr);
 }
 
+#ifdef ANDROID_P2P
+int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s, int freq)
+{
+	struct wpa_supplicant *iface = NULL;
+	struct p2p_data *p2p = wpa_s->global->p2p;
+
+	for (iface = wpa_s->global->ifaces; iface; iface = iface->next) {
+		if((iface->p2p_group_interface) && (iface->current_ssid) &&
+			(iface->current_ssid->frequency != freq)) {
+
+			if (iface->p2p_group_interface == P2P_GROUP_INTERFACE_GO) {
+					/* Try to see whether we can move the GO. If it
+					 * is not possible, remove the GO interface
+					 */
+					if(wpa_drv_switch_channel(iface, freq) == 0) {
+							wpa_printf(MSG_ERROR, "P2P: GO Moved to freq(%d)", freq);
+							iface->current_ssid->frequency = freq;
+							continue;
+					}
+			}
+
+			/* If GO cannot be moved or if the conflicting interface is a
+			 * P2P Client, remove the interface depending up on the connection
+			 * priority */
+			if(!wpas_is_p2p_prioritized(wpa_s)) {
+				/* STA connection has priority over existing
+				 * P2P connection. So remove the interface */
+				wpa_printf(MSG_DEBUG, "P2P: Removing P2P connection due to Single channel"
+						"concurrent mode frequency conflict");
+				iface->removal_reason = P2P_GROUP_REMOVAL_FREQ_CONFLICT;
+				wpas_p2p_group_delete(iface, 0);
+			} else {
+				/* Existing connection has the priority. Disable the newly
+				 * selected network and let the application know about it.
+				 */
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+#endif
 
 static void wpas_p2p_fallback_to_go_neg(struct wpa_supplicant *wpa_s,
 					int group_added)
