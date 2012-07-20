@@ -1050,6 +1050,18 @@ int p2p_find(struct p2p_data *p2p, unsigned int timeout,
 	return res;
 }
 
+#ifdef ANDROID_P2P
+int p2p_search_pending(struct p2p_data *p2p)
+{
+	if(p2p == NULL)
+		return 0;
+
+	if(p2p->state == P2P_SEARCH_WHEN_READY)
+		return 1;
+
+	return 0;
+}
+#endif
 
 int p2p_other_scan_completed(struct p2p_data *p2p)
 {
