@@ -4908,10 +4908,15 @@ int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s, int freq)
 	struct p2p_data *p2p = wpa_s->global->p2p;
 
 	for (iface = wpa_s->global->ifaces; iface; iface = iface->next) {
-		if((iface->p2p_group_interface) && (iface->current_ssid) &&
-			(iface->current_ssid->frequency != freq)) {
+		if((iface->current_ssid) &&
+		   /* same interface */
+		   (iface->current_ssid->mode == WPAS_MODE_P2P_GO ||
+		     iface->current_ssid->mode == WPAS_MODE_P2P_GROUP_FORMATION ||
+		   /* different interface */
+		    iface->p2p_group_interface) &&
+		   (iface->current_ssid->frequency != freq)) {
 
-			if (iface->p2p_group_interface == P2P_GROUP_INTERFACE_GO) {
+			if (iface->current_ssid->mode == WPAS_MODE_P2P_GO) {
 					/* Try to see whether we can move the GO. If it
 					 * is not possible, remove the GO interface
 					 */

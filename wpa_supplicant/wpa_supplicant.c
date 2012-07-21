@@ -1189,6 +1189,28 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 				bss->ie_len);
 #endif /* CONFIG_TDLS */
 
+#ifdef ANDROID_P2P
+	/* If multichannel concurrency is not supported, check for any frequency
+	 * conflict and take appropriate action.
+	 */
+	if (!(wpa_s->drv_flags & WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) &&
+	    bss && ((freq = wpa_drv_shared_freq(wpa_s)) > 0) &&
+	    (freq != bss->freq)) {
+		wpa_printf(MSG_DEBUG,
+			   "Shared interface with conflicting frequency found (%d != %d)",
+			   freq, bss->freq);
+		if (wpas_p2p_handle_frequency_conflicts(wpa_s, bss->freq) < 0) {
+			/* Handling conflicts failed. Disable the current connect req and
+			 * notify the userspace to take appropriate action */
+			wpa_printf(MSG_DEBUG, "proiritize is not set. Notifying user space to handle the case");
+			wpa_supplicant_disable_network(wpa_s, ssid);
+			wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_FREQ_CONFLICT
+				" id=%d", ssid->id);
+			os_memset(wpa_s->pending_bssid, 0, ETH_ALEN);
+			return;
+		}
+	}
+#endif
 	if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_SME) &&
 	    ssid->mode == IEEE80211_MODE_INFRA) {
 		/* TODO: move set_priority to a different place */
@@ -1493,27 +1515,6 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 	wpa_supplicant_apply_ht_overrides(wpa_s, ssid, &params);
 #endif /* CONFIG_HT_OVERRIDES */
 
-#ifdef ANDROID_P2P
-	/* If multichannel concurrency is not supported, check for any frequency
-	 * conflict and take appropriate action.
-	 */
-	if (!(wpa_s->drv_flags & WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) &&
-		((freq = wpa_drv_shared_freq(wpa_s)) > 0) && (freq != params.freq)) {
-		wpa_printf(MSG_DEBUG,
-			   "Shared interface with conflicting frequency found (%d != %d)",
-			   freq, params.freq);
-		if (wpas_p2p_handle_frequency_conflicts(wpa_s, params.freq) < 0) {
-			/* Handling conflicts failed. Disable the current connect req and
-			 * notify the userspace to take appropriate action */
-			wpa_printf(MSG_DEBUG, "proiritize is not set. Notifying user space to handle the case");
-			wpa_supplicant_disable_network(wpa_s, ssid);
-			wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_FREQ_CONFLICT
-				" id=%d", ssid->id);
-			os_memset(wpa_s->pending_bssid, 0, ETH_ALEN);
-			return;
-		}
-	}
-#endif
 	ret = wpa_drv_associate(wpa_s, &params);
 	if (ret < 0) {
 		wpa_msg(wpa_s, MSG_INFO, "Association request to the driver "
