@@ -8653,7 +8653,11 @@ static int wpa_driver_nl80211_shared_freq(void *priv)
 			 struct wpa_driver_nl80211_data, list) {
 		if (drv == driver ||
 		    os_strcmp(drv->phyname, driver->phyname) != 0 ||
+#ifdef ANDROID_P2P
+		    (!driver->associated && !is_ap_interface(driver->nlmode)))
+#else
 		    !driver->associated)
+#endif
 			continue;
 
 		wpa_printf(MSG_DEBUG, "nl80211: Found a match for PHY %s - %s "
