@@ -61,6 +61,7 @@ struct hostapd_data {
 	u8 own_addr[ETH_ALEN];
 
 	int num_sta; /* number of entries in sta_list */
+	int num_priorities; /* num of stations with set_priorities */
 	struct sta_info *sta_list; /* STA info list head */
 #define STA_HASH_SIZE 256
 #define STA_HASH(sta) (sta[5])

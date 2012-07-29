@@ -56,6 +56,7 @@ struct sta_info {
 	unsigned int no_ht_set:1;
 	unsigned int ht_20mhz_set:1;
 	unsigned int no_p2p_set:1;
+	unsigned int priority_set:1;
 
 	u16 auth_alg;
 	u8 previous_ap[6];
@@ -176,5 +177,7 @@ static inline int ap_sta_is_authorized(struct sta_info *sta)
 
 void ap_sta_deauth_cb(struct hostapd_data *hapd, struct sta_info *sta);
 void ap_sta_disassoc_cb(struct hostapd_data *hapd, struct sta_info *sta);
+void ap_sta_set_priority(struct hostapd_data *hapd, struct sta_info *sta);
+void ap_sta_cancel_priority(struct hostapd_data *hapd, struct sta_info *sta);
 
 #endif /* STA_INFO_H */

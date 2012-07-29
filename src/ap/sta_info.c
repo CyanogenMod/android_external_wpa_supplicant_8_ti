@@ -604,6 +604,7 @@ void ap_sta_deauthenticate(struct hostapd_data *hapd, struct sta_info *sta,
 	wpa_printf(MSG_DEBUG, "%s: deauthenticate STA " MACSTR,
 		   hapd->conf->iface, MAC2STR(sta->addr));
 	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_REQ_OK);
+	ap_sta_cancel_priority(hapd, sta);
 	ap_sta_set_authorized(hapd, sta, 0);
 	sta->timeout_next = STA_REMOVE;
 	wpa_printf(MSG_DEBUG, "%s: reschedule ap_handle_timer timeout "
@@ -881,6 +882,7 @@ void ap_sta_set_authorized(struct hostapd_data *hapd, struct sta_info *sta,
 				AP_STA_CONNECTED MACSTR, MAC2STR(sta->addr));
 
 		sta->flags |= WLAN_STA_AUTHORIZED;
+		ap_sta_cancel_priority(hapd, sta);
 	} else {
 		if (dev_addr)
 			wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_DISCONNECTED
@@ -924,6 +926,7 @@ void ap_sta_disconnect(struct hostapd_data *hapd, struct sta_info *sta,
 	wpa_auth_sm_event(sta->wpa_sm, WPA_DEAUTH);
 	ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
 	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_REQ_OK);
+	ap_sta_cancel_priority(hapd, sta);
 	wpa_printf(MSG_DEBUG, "%s: reschedule ap_handle_timer timeout "
 		   "for " MACSTR " (%d seconds - "
 		   "AP_MAX_INACTIVITY_AFTER_DEAUTH)",
@@ -964,4 +967,27 @@ void ap_sta_disassoc_cb(struct hostapd_data *hapd, struct sta_info *sta)
 	sta->flags &= ~WLAN_STA_PENDING_DISASSOC_CB;
 	eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
 	ap_sta_disassoc_cb_timeout(hapd, sta);
+}
+
+void ap_sta_set_priority(struct hostapd_data *hapd, struct sta_info *sta)
+{
+	if (sta->priority_set)
+		return;
+
+	if (sta->flags & WLAN_STA_AUTHORIZED)
+		return;
+
+	sta->priority_set = 1;
+	if (!hapd->num_priorities++)
+		hostapd_drv_set_priority(hapd);
+}
+
+void ap_sta_cancel_priority(struct hostapd_data *hapd, struct sta_info *sta)
+{
+	if (!sta->priority_set)
+		return;
+
+	sta->priority_set = 0;
+	if (!--hapd->num_priorities)
+		hostapd_drv_cancel_priority(hapd);
 }

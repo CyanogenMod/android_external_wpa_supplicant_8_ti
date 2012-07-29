@@ -209,4 +209,19 @@ static inline void hostapd_drv_poll_client(struct hostapd_data *hapd,
 	hapd->driver->poll_client(hapd->drv_priv, own_addr, addr, qos);
 }
 
+static inline int hostapd_drv_set_priority(struct hostapd_data *hapd)
+{
+	if (hapd->driver == NULL || hapd->driver->set_priority == NULL)
+		return 0;
+	return hapd->driver->set_priority(hapd->drv_priv);
+}
+
+static inline int hostapd_drv_cancel_priority(struct hostapd_data *hapd)
+{
+	if (hapd->driver == NULL || hapd->driver->cancel_priority == NULL)
+		return 0;
+	return hapd->driver->cancel_priority(hapd->drv_priv);
+}
+
+
 #endif /* AP_DRV_OPS */
