@@ -416,6 +416,22 @@ static inline int wpa_drv_cancel_remain_on_channel(
 	return -1;
 }
 
+static inline int wpa_drv_set_priority(
+	struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->driver->set_priority)
+		return wpa_s->driver->set_priority(wpa_s->drv_priv);
+	return -1;
+}
+
+static inline int wpa_drv_cancel_priority(
+	struct wpa_supplicant *wpa_s)
+{
+	if (wpa_s->driver->cancel_priority)
+		return wpa_s->driver->cancel_priority(wpa_s->drv_priv);
+	return -1;
+}
+
 static inline int wpa_drv_probe_req_report(struct wpa_supplicant *wpa_s,
 					   int report)
 {

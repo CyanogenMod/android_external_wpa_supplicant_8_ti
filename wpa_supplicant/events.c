@@ -136,6 +136,7 @@ void wpa_supplicant_mark_disassoc(struct wpa_supplicant *wpa_s)
 	if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED)
 		return;
 
+	wpa_drv_cancel_priority(wpa_s);
 	wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);
 	bssid_changed = !is_zero_ether_addr(wpa_s->bssid);
 	os_memset(wpa_s->bssid, 0, ETH_ALEN);

@@ -237,6 +237,7 @@ struct wpa_driver_nl80211_data {
 
 	unsigned int disabled_11b_rates:1;
 	unsigned int pending_remain_on_chan:1;
+	unsigned int pending_priority:1;
 	unsigned int in_interface_list:1;
 	unsigned int device_ap_sme:1;
 	unsigned int poll_command_supported:1;
@@ -8306,6 +8307,71 @@ nla_put_failure:
 	return -1;
 }
 
+static int wpa_driver_nl80211_set_priority(void *priv)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg;
+	int ret;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -1;
+
+	nl80211_cmd(drv, msg, 0, NL80211_CMD_SET_PRIORITY);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, drv->ifindex);
+
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	msg = NULL;
+	if (ret == 0) {
+		wpa_printf(MSG_DEBUG, "nl80211: set priority");
+		drv->pending_priority = 1;
+		return 0;
+	}
+	wpa_printf(MSG_DEBUG, "nl80211: Failed to set priority: %d (%s)",
+		   ret, strerror(-ret));
+nla_put_failure:
+	nlmsg_free(msg);
+	return -1;
+}
+
+static int wpa_driver_nl80211_cancel_priority(void *priv)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg;
+	int ret;
+
+	if (!drv->pending_priority) {
+		wpa_printf(MSG_DEBUG, "nl80211: No pending priority "
+			   "to cancel");
+		return -1;
+	}
+
+	wpa_printf(MSG_DEBUG, "nl80211: Cancel priority");
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -1;
+
+	nl80211_cmd(drv, msg, 0, NL80211_CMD_CANCEL_PRIORITY);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, drv->ifindex);
+
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	msg = NULL;
+	if (ret == 0) {
+		drv->pending_remain_on_chan = 0;
+		return 0;
+	}
+	wpa_printf(MSG_DEBUG, "nl80211: Failed to cancel priority: %d (%s)",
+		   ret, strerror(-ret));
+nla_put_failure:
+	nlmsg_free(msg);
+	return -1;
+}
+
 
 static int wpa_driver_nl80211_probe_req_report(void *priv, int report)
 {
@@ -9158,6 +9224,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.remain_on_channel = wpa_driver_nl80211_remain_on_channel,
 	.cancel_remain_on_channel =
 	wpa_driver_nl80211_cancel_remain_on_channel,
+	.set_priority = wpa_driver_nl80211_set_priority,
+	.cancel_priority = wpa_driver_nl80211_cancel_priority,
 	.probe_req_report = wpa_driver_nl80211_probe_req_report,
 	.deinit_ap = wpa_driver_nl80211_deinit_ap,
 	.deinit_p2p_cli = wpa_driver_nl80211_deinit_p2p_cli,

@@ -2046,6 +2046,9 @@ struct wpa_driver_ops {
 	 */
 	int (*cancel_remain_on_channel)(void *priv);
 
+	int (*set_priority)(void *priv);
+	int (*cancel_priority)(void *priv);
+
 	/**
 	 * probe_req_report - Request Probe Request frames to be indicated
 	 * @priv: Private driver interface data
