@@ -1194,8 +1194,7 @@ void wpa_supplicant_associate(struct wpa_supplicant *wpa_s,
 	 * conflict and take appropriate action.
 	 */
 	if (!(wpa_s->drv_flags & WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) &&
-	    bss && ((freq = wpa_drv_shared_freq(wpa_s)) > 0) &&
-	    (freq != bss->freq)) {
+	    bss && ((freq = wpa_drv_shared_freq(wpa_s)) > 0)) {
 		wpa_printf(MSG_DEBUG,
 			   "Shared interface with conflicting frequency found (%d != %d)",
 			   freq, bss->freq);

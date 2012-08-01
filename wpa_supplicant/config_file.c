@@ -905,6 +905,10 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	    DEFAULT_SCHED_SCAN_LONG_INTERVAL)
 		fprintf(f, "sched_scan_long_intervals=%u\n",
 			config->sched_scan_long_interval);
+#ifdef ANDROID_P2P
+	if (config->p2p_conc_mode)
+		fprintf(f, "p2p_conc_mode=%u\n", config->p2p_conc_mode);
+#endif
 }
 
 #endif /* CONFIG_NO_CONFIG_WRITE */

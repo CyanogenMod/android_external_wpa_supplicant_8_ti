@@ -2970,6 +2970,7 @@ static const struct global_parse_data global_fields[] = {
 #endif /* CONFIG_P2P */
 #ifdef ANDROID_P2P
 	{ STR_RANGE(prioritize, 0, 32), CFG_CHANGED_IFACE_PRIORITY },
+	{ INT_RANGE(p2p_conc_mode, 0, 2), 0 },
 #endif
 	{ FUNC(country), CFG_CHANGED_COUNTRY },
 	{ INT(bss_max_count), 0 },

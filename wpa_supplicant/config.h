@@ -706,6 +706,13 @@ struct wpa_config {
 	 * UTF-8
 	 */
 	char *prioritize;
+
+	/*
+	 * 0 - support STA + P2P CL/GO on the same channel (BRCM default)
+	 * 1 - support only one connection at a time (WL8)
+	 * 2 - support STA + P2P GO on same channel, but not P2P CL (WL6/7)
+	 */
+	int p2p_conc_mode;
 #endif
 };
 

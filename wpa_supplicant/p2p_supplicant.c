@@ -4942,10 +4942,25 @@ int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s, int freq)
 		   (iface->current_ssid->mode == WPAS_MODE_P2P_GO ||
 		     iface->current_ssid->mode == WPAS_MODE_P2P_GROUP_FORMATION ||
 		   /* different interface */
-		    iface->p2p_group_interface) &&
-		   (iface->current_ssid->frequency != freq)) {
+		    iface->p2p_group_interface)) {
 
-			if (iface->current_ssid->mode == WPAS_MODE_P2P_GO) {
+			/* we support P2P GO + STA in same frequency */
+			if (wpa_s->conf->p2p_conc_mode == 2 &&
+			    iface->current_ssid->mode == WPAS_MODE_P2P_GO &&
+			    iface->current_ssid->frequency == freq)
+				continue;
+
+			/* we don't support dual interfaces */
+			if (wpa_s->conf->p2p_conc_mode == 1)
+				goto remove_interface;
+
+			/* we only fear frequency conflicts */
+			if (wpa_s->conf->p2p_conc_mode == 0 &&
+			    iface->current_ssid->frequency == freq)
+				continue;
+
+			if (iface->current_ssid->mode == WPAS_MODE_P2P_GO &&
+			    iface->current_ssid->frequency != freq) {
 					/* Try to see whether we can move the GO. If it
 					 * is not possible, remove the GO interface
 					 */
@@ -4956,20 +4971,26 @@ int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s, int freq)
 					}
 			}
 
-			/* If GO cannot be moved or if the conflicting interface is a
-			 * P2P Client, remove the interface depending up on the connection
-			 * priority */
+			/*
+			 * We don't support a P2P + STA in this constellation
+			 * - one of them has to go. Remove depending on
+			 * connection priority.
+			 */
+remove_interface:
 			if(!wpas_is_p2p_prioritized(wpa_s)) {
 				/* STA connection has priority over existing
 				 * P2P connection. So remove the interface */
-				wpa_printf(MSG_DEBUG, "P2P: Removing P2P connection due to Single channel"
-						"concurrent mode frequency conflict");
+				wpa_printf(MSG_INFO, "P2P: Removing P2P "
+					   "connection due to Single channel "
+					   "concurrent mode conflict");
 				iface->removal_reason = P2P_GROUP_REMOVAL_FREQ_CONFLICT;
 				wpas_p2p_group_delete(iface, 0);
 			} else {
 				/* Existing connection has the priority. Disable the newly
 				 * selected network and let the application know about it.
 				 */
+				wpa_printf(MSG_INFO, "P2P: Disallow STA due to "
+					   "STA + P2P concurrent mode conflict");
 				return -1;
 			}
 		}
