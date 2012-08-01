@@ -2968,6 +2968,72 @@ static int p2p_ctrl_find(struct wpa_supplicant *wpa_s, char *cmd)
 }
 
 
+#ifdef ANDROID_P2P
+int p2p_handle_concurrency_conflicts(struct wpa_supplicant *wpa_s, int *go_intent)
+{
+	struct wpa_supplicant *iface = NULL;
+	struct p2p_data *p2p = wpa_s->global->p2p;
+
+	wpa_printf(MSG_INFO, "p2p: handling concurrency conflicts");
+
+	/* we only fear frequency conflicts */
+	if (wpa_s->conf->p2p_conc_mode == 0)
+		return 0;
+
+	/*
+	 * Default GO intent is 14, so we don't interfere with a potential
+	 * later STA connection. As we don't support P2P CL + STA, this
+	 * would minimize our changes for conflict.
+	 */
+	if (wpa_s->conf->p2p_conc_mode == 2) {
+		wpa_printf(MSG_INFO, "p2p: initializing go intent to 14 "
+			   "to minimize concurrent mode conflicts");
+		*go_intent = 14;
+	}
+
+	for (iface = wpa_s->global->ifaces; iface; iface = iface->next) {
+		/* existing STA connection */
+		if(iface->current_ssid &&
+		   iface->current_ssid->mode == WPAS_MODE_INFRA) {
+
+			/* we only support P2P GO + STA in same frequency */
+			if (wpa_s->conf->p2p_conc_mode == 2) {
+				wpa_printf(MSG_INFO, "p2p: forcing go intent 15 "
+					   "in connection due to concurrent mode "
+					   "requirements");
+				*go_intent = 15;
+				break;
+			}
+
+			/* we don't support dual interfaces */
+			if (wpa_s->conf->p2p_conc_mode != 1)
+				continue;
+
+			/*
+			 * In p2p_conc_mode=1 we don't support P2P + STA.
+			 * in this constellation - one of them has to go.
+			 * Remove depending on connection priority.
+			 */
+			if(!wpas_is_p2p_prioritized(wpa_s)) {
+				wpa_printf(MSG_INFO, "P2P: Disallowing p2p "
+					   "connection due to concurrent mode "
+					   "conflict");
+				return -1;
+			} else {
+				/* Existing connection has the priority. Disable the newly
+				 * selected network and let the application know about it.
+				 */
+				wpa_printf(MSG_INFO, "P2P: Disallow STA due to "
+					   "STA + P2P concurrent mode conflict");
+				/* TODO: something like "wpa_cli disconnect"? */
+			}
+		}
+	}
+	return 0;
+}
+#endif
+
+
 static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 			    char *buf, size_t buflen)
 {
@@ -3051,6 +3117,20 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 			return 17;
 		}
 	}
+
+#ifdef ANDROID_P2P
+	if (p2p_handle_concurrency_conflicts(wpa_s, &go_intent) != 0) {
+		wpa_printf(MSG_INFO, "P2P: Canceling p2p connect due to "
+			   "single channel concurrency conflicts.");
+		return -1;
+	}
+
+	if (join && go_intent == 15) {
+		wpa_printf(MSG_INFO, "P2P: Canceling p2p join due to "
+			   "single channel concurrency conflicts.");
+		return -1;
+	}
+#endif
 
 	new_pin = wpas_p2p_connect(wpa_s, addr, pin, wps_method,
 				   persistent_group, automatic, join,
