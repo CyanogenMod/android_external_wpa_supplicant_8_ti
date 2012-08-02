@@ -1809,61 +1809,23 @@ static int wpa_supplicant_ctrl_iface_remove_network(
 	/* cmd: "<network id>" or "all" */
 	if (os_strcmp(cmd, "all") == 0) {
 		wpa_printf(MSG_DEBUG, "CTRL_IFACE: REMOVE_NETWORK all");
-		ssid = wpa_s->conf->ssid;
-		while (ssid) {
-			struct wpa_ssid *remove_ssid = ssid;
-			id = ssid->id;
-			ssid = ssid->next;
-			wpas_notify_network_removed(wpa_s, remove_ssid);
-			wpa_config_remove_network(wpa_s->conf, id);
+		ssid = NULL;
+	} else {
+		id = atoi(cmd);
+		wpa_printf(MSG_DEBUG, "CTRL_IFACE: REMOVE_NETWORK id=%d", id);
+
+		ssid = wpa_config_get_network(wpa_s->conf, id);
+		if (ssid == NULL) {
+			wpa_printf(MSG_DEBUG, "CTRL_IFACE: Could not find "
+				   "network id=%d", id);
+			return -1;
 		}
-		eapol_sm_invalidate_cached_session(wpa_s->eapol);
-		if (wpa_s->current_ssid) {
-#ifdef CONFIG_SME
-			wpa_s->sme.prev_bssid_set = 0;
-#endif /* CONFIG_SME */
-			wpa_sm_set_config(wpa_s->wpa, NULL);
-			eapol_sm_notify_config(wpa_s->eapol, NULL, NULL);
-			wpa_supplicant_disassociate(wpa_s,
-				                    WLAN_REASON_DEAUTH_LEAVING);
-		}
-		return 0;
 	}
 
-	id = atoi(cmd);
-	wpa_printf(MSG_DEBUG, "CTRL_IFACE: REMOVE_NETWORK id=%d", id);
-
-	ssid = wpa_config_get_network(wpa_s->conf, id);
-	if (ssid)
-		wpas_notify_network_removed(wpa_s, ssid);
-	if (ssid == NULL ||
-	    wpa_config_remove_network(wpa_s->conf, id) < 0) {
-		wpa_printf(MSG_DEBUG, "CTRL_IFACE: Could not find network "
-			   "id=%d", id);
-		return -1;
-	}
-
-	if (ssid == wpa_s->current_ssid || wpa_s->current_ssid == NULL) {
-#ifdef CONFIG_SME
-		wpa_s->sme.prev_bssid_set = 0;
-#endif /* CONFIG_SME */
-		/*
-		 * Invalidate the EAP session cache if the current or
-		 * previously used network is removed.
-		 */
-		eapol_sm_invalidate_cached_session(wpa_s->eapol);
-	}
-
-	if (ssid == wpa_s->current_ssid) {
-		wpa_sm_set_config(wpa_s->wpa, NULL);
-		eapol_sm_notify_config(wpa_s->eapol, NULL, NULL);
-
-		wpa_supplicant_disassociate(wpa_s, WLAN_REASON_DEAUTH_LEAVING);
-	}
+	wpa_supplicant_remove_network(wpa_s, ssid);
 
 	return 0;
 }
-
 
 static int wpa_supplicant_ctrl_iface_set_network(
 	struct wpa_supplicant *wpa_s, char *cmd)

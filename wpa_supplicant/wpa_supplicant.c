@@ -1610,6 +1610,63 @@ void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
 	wpa_supplicant_clear_connection(wpa_s, addr);
 }
 
+/**
+ * wpa_supplicant_remove_network - Removes a configured network and disconnect
+ * if it's the currently connected network.
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * @ssid: wpa_ssid structure for a configured network or %NULL
+ *
+ * Removes the specified network or all networks if no network specified.
+ */
+void wpa_supplicant_remove_network(struct wpa_supplicant *wpa_s,
+				   struct wpa_ssid *ssid)
+{
+	struct wpa_ssid *other_ssid;
+
+	if (ssid == NULL) {
+		for (other_ssid = wpa_s->conf->ssid; other_ssid;
+		     other_ssid = other_ssid->next) {
+			wpas_notify_network_removed(wpa_s, ssid);
+			if (other_ssid == wpa_s->current_ssid) {
+#ifdef CONFIG_SME
+				wpa_s->sme.prev_bssid_set = 0;
+#endif /* CONFIG_SME */
+				wpa_sm_set_config(wpa_s->wpa, NULL);
+				eapol_sm_notify_config(wpa_s->eapol,
+						       NULL, NULL);
+				wpa_supplicant_deauthenticate(wpa_s,
+						    WLAN_REASON_DEAUTH_LEAVING);
+			}
+			wpa_config_remove_network(wpa_s->conf, ssid->id);
+		}
+
+		eapol_sm_invalidate_cached_session(wpa_s->eapol);
+	} else {
+		wpas_notify_network_removed(wpa_s, ssid);
+
+		if (ssid == wpa_s->current_ssid ||
+		    wpa_s->current_ssid == NULL) {
+#ifdef CONFIG_SME
+			wpa_s->sme.prev_bssid_set = 0;
+#endif /* CONFIG_SME */
+			/*
+			 * Invalidate the EAP session cache if the current or
+			 * previously used network is removed.
+			 */
+			eapol_sm_invalidate_cached_session(wpa_s->eapol);
+		}
+
+		if (ssid == wpa_s->current_ssid) {
+			wpa_sm_set_config(wpa_s->wpa, NULL);
+			eapol_sm_notify_config(wpa_s->eapol, NULL, NULL);
+
+			wpa_supplicant_deauthenticate(wpa_s,
+					      WLAN_REASON_DEAUTH_LEAVING);
+		}
+
+		wpa_config_remove_network(wpa_s->conf, ssid->id);
+	}
+}
 
 /**
  * wpa_supplicant_enable_network - Mark a configured network as enabled

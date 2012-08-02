@@ -611,7 +611,8 @@ void wpa_supplicant_deauthenticate(struct wpa_supplicant *wpa_s,
 				   int reason_code);
 void wpa_supplicant_disassociate(struct wpa_supplicant *wpa_s,
 				 int reason_code);
-
+void wpa_supplicant_remove_network(struct wpa_supplicant *wpa_s,
+				   struct wpa_ssid *ssid);
 void wpa_supplicant_enable_network(struct wpa_supplicant *wpa_s,
 				   struct wpa_ssid *ssid);
 void wpa_supplicant_disable_network(struct wpa_supplicant *wpa_s,
