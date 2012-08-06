@@ -347,7 +347,7 @@ void sme_event_auth(struct wpa_supplicant *wpa_s, union wpa_event_data *data)
 			return;
 
 		case WLAN_AUTH_SHARED_KEY:
-			if (wpa_s->current_ssid->auth_alg == WPA_AUTH_ALG_OPEN) {
+			if (wpa_s->current_ssid->auth_alg & WPA_AUTH_ALG_OPEN) {
 				wpa_s->current_ssid->auth_alg =
 					WPA_AUTH_ALG_SHARED;
 				wpa_dbg(wpa_s, MSG_DEBUG,
