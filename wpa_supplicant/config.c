@@ -2554,6 +2554,7 @@ struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 	config->fast_reauth = DEFAULT_FAST_REAUTH;
 	config->p2p_go_intent = DEFAULT_P2P_GO_INTENT;
 	config->p2p_intra_bss = DEFAULT_P2P_INTRA_BSS;
+	config->p2p_go_max_inactivity = DEFAULT_P2P_GO_MAX_INACTIVITY;
 	config->bss_max_count = DEFAULT_BSS_MAX_COUNT;
 	config->bss_expiration_age = DEFAULT_BSS_EXPIRATION_AGE;
 	config->bss_expiration_scan_count = DEFAULT_BSS_EXPIRATION_SCAN_COUNT;
@@ -2992,6 +2993,7 @@ static const struct global_parse_data global_fields[] = {
 	{ BIN(wps_nfc_dh_pubkey), 0 },
 	{ BIN(wps_nfc_dh_privkey), 0 },
 	{ BIN(wps_nfc_dev_pw), 0 },
+	{ INT(p2p_go_max_inactivity), 0 },
 	{ INT_RANGE(sched_scan_num_short_intervals, 0,
 		    MAX_NUM_SCHED_SCAN_SHORT_INTERVALS), 0 },
 	{ INT_RANGE(sched_scan_short_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },

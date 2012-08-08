@@ -893,6 +893,9 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	write_global_bin(f, "wps_nfc_dh_pubkey", config->wps_nfc_dh_pubkey);
 	write_global_bin(f, "wps_nfc_dh_privkey", config->wps_nfc_dh_privkey);
 	write_global_bin(f, "wps_nfc_dev_pw", config->wps_nfc_dev_pw);
+	if (config->p2p_go_max_inactivity != DEFAULT_P2P_GO_MAX_INACTIVITY)
+		fprintf(f, "p2p_go_max_inactivity=%u\n",
+			config->p2p_go_max_inactivity);
 	if (config->sched_scan_num_short_intervals !=
 	    DEFAULT_SCHED_SCAN_NUM_SHORT_INTERVALS)
 		fprintf(f, "sched_scan_num_short_intervals=%u\n",
