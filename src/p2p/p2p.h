@@ -1727,4 +1727,13 @@ const char * p2p_wps_method_text(enum p2p_wps_method method);
 
 int p2p_prepare_channel(struct p2p_data *p2p, unsigned int force_freq);
 
+/**
+ * p2p_set_config_timeout - Set local config timeouts
+ * @p2p: P2P module context from p2p_init()
+ * @go_timeout: Time in 10 ms units it takes to start the GO mode
+ * @client_timeout: Time in 10 ms units it takes to start the client mode
+ */
+void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
+			    u8 client_timeout);
+
 #endif /* P2P_H */

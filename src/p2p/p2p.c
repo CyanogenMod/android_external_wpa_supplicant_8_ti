@@ -2382,6 +2382,9 @@ struct p2p_data * p2p_init(const struct p2p_config *cfg)
 	eloop_register_timeout(P2P_PEER_EXPIRATION_INTERVAL, 0,
 			       p2p_expiration_timeout, p2p, NULL);
 
+	p2p->go_timeout = 100;
+	p2p->client_timeout = 20;
+
 	return p2p;
 }
 
@@ -4104,4 +4107,14 @@ int p2p_non_idle(struct p2p_data *p2p)
 	if (p2p == NULL)
 		return 0;
 	return p2p->state != P2P_IDLE;
+}
+
+
+void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
+			    u8 client_timeout)
+{
+	if (p2p) {
+		p2p->go_timeout = go_timeout;
+		p2p->client_timeout = client_timeout;
+	}
 }
