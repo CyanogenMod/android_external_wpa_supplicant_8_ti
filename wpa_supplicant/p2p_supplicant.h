@@ -32,10 +32,10 @@ int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s,
 #endif
 int wpas_p2p_group_remove(struct wpa_supplicant *wpa_s, const char *ifname);
 int wpas_p2p_group_add(struct wpa_supplicant *wpa_s, int persistent_group,
-		       int freq);
+		       int freq, int ht40);
 int wpas_p2p_group_add_persistent(struct wpa_supplicant *wpa_s,
 				  struct wpa_ssid *ssid, int addr_allocated,
-				  int freq);
+				  int freq, int ht40);
 struct p2p_group * wpas_p2p_group_init(struct wpa_supplicant *wpa_s,
 				       struct wpa_ssid *ssid);
 void wpas_p2p_wps_success(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
@@ -146,5 +146,7 @@ struct wpa_ssid * wpas_p2p_get_persistent(struct wpa_supplicant *wpa_s,
 void wpas_p2p_notify_ap_sta_authorized(struct wpa_supplicant *wpa_s,
 				       const u8 *addr);
 int wpas_p2p_scan_no_go_seen(struct wpa_supplicant *wpa_s);
+int wpas_p2p_get_ht40_mode(struct wpa_supplicant *wpa_s,
+			   struct hostapd_hw_modes *mode, u8 channel);
 
 #endif /* P2P_SUPPLICANT_H */
