@@ -3086,7 +3086,7 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 	auth = os_strstr(pos, " auth") != NULL;
 	automatic = os_strstr(pos, " auto") != NULL;
 	pd = os_strstr(pos, " provdisc") != NULL;
-	ht40 = os_strstr(pos, " ht40") != NULL;
+	ht40 = (os_strstr(cmd, "ht40") != NULL) || wpa_s->conf->p2p_go_ht40;
 #ifdef ANDROID_P2P
 	no_p2p_conc = os_strstr(pos, " no_p2p_conc") != NULL;
 #endif
@@ -3595,7 +3595,7 @@ static int p2p_ctrl_group_add(struct wpa_supplicant *wpa_s, char *cmd)
 	if (pos)
 		freq = atoi(pos + 5);
 
-	ht40 = os_strstr(cmd, "ht40") != NULL;
+	ht40 = (os_strstr(cmd, "ht40") != NULL) || wpa_s->conf->p2p_go_ht40;
 
 	if (os_strncmp(cmd, "persistent=", 11) == 0)
 		return p2p_ctrl_group_add_persistent(wpa_s, cmd + 11, freq,
