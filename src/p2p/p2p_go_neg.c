@@ -367,6 +367,20 @@ static void p2p_reselect_channel(struct p2p_data *p2p,
 	}
 
 	/*
+	 * Try to see if the original channel is in the intersection. If
+	 * so, no need to change anything, as it already contains some
+	 * randomness.
+	 */
+	if (p2p_channels_includes(intersection, p2p->op_reg_class,
+				  p2p->op_channel)) {
+		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
+			"P2P: Using original operating class and channel "
+			"(reg_class %u channel %u) from intersection",
+			p2p->op_reg_class, p2p->op_channel);
+		return;
+	}
+
+	/*
 	 * Fall back to whatever is included in the channel intersection since
 	 * no better options seems to be available.
 	 */
@@ -623,7 +637,8 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 				wpa_hexdump(MSG_DEBUG, "P2P: channels",
 					    c->channel, c->channels);
 			}
-			if (!p2p_channels_includes(&intersection,
+			if (!p2p->cfg->cfg_op_channel ||
+			    !p2p_channels_includes(&intersection,
 						   p2p->op_reg_class,
 						   p2p->op_channel))
 				p2p_reselect_channel(p2p, &intersection);
