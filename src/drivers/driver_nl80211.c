@@ -8922,13 +8922,13 @@ static u8 *nl80211_rx_filter_get_pattern(struct rx_filter *filter, void *arg)
 }
 
 static int
-nl80211_self_filter_get_pattern_handler(u8 *buf, int buflen, void *arg)
+nl80211_sta_unicast_filter_get_pattern_handler(u8 *buf, int buflen, void *arg)
 {
 	int ret;
 	struct i802_bss *bss = (struct i802_bss *)arg;
 
 	ret = linux_get_ifhwaddr(bss->drv->global->ioctl_sock,
-				 bss->ifname, buf);
+				 "wlan0", buf);
 	if (ret) {
 		wpa_printf(MSG_ERROR, "Failed to get own HW addr (%d)", ret);
 		return -1;
@@ -8940,12 +8940,12 @@ nl80211_self_filter_get_pattern_handler(u8 *buf, int buflen, void *arg)
 
 static struct rx_filter rx_filters[NUM_RX_FILTERS] = {
 	/* ID 0 */
-	{.name = "self",
+	{.name = "sta_unicast",
 	 .pattern = {},
 	 .pattern_len = 6,
 	 .mask = { BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) },
 	 .mask_len = 1,
-	 .get_pattern_handler = nl80211_self_filter_get_pattern_handler,
+	 .get_pattern_handler = nl80211_sta_unicast_filter_get_pattern_handler,
 	 .action = NL80211_WOWLAN_ACTION_ALLOW,
 	},
 
