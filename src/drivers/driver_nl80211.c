@@ -167,6 +167,10 @@ struct nl80211_global {
 	int ioctl_sock; /* socket for ioctl() use */
 
 	struct nl_handle *nl_event;
+#ifdef ANDROID
+	int wowlan_triggers;
+	int wowlan_enabled;
+#endif
 };
 
 struct nl80211_wiphy_data {
@@ -285,10 +289,6 @@ struct wpa_driver_nl80211_data {
 	int auth_wep_tx_keyidx;
 	int auth_local_state_change;
 	int auth_p2p;
-#ifdef ANDROID
-	u8 wowlan_triggers;
-	u8 wowlan_enabled;
-#endif
 };
 
 
@@ -9003,18 +9003,19 @@ static struct rx_filter rx_filters[] = {
 
 static int nl80211_set_wowlan_triggers(struct i802_bss *bss, int enable)
 {
+	struct nl80211_global *global = bss->drv->global;
 	struct nl_msg *msg, *pats = NULL;
 	struct nlattr *wowtrig, *pat;
 	int i, ret = -1;
 	int filters;
 
-	bss->drv->wowlan_enabled = !!enable;
+	global->wowlan_enabled = !!enable;
 
 	msg = nlmsg_alloc();
 	if (!msg)
 		return -ENOMEM;
 
-	genlmsg_put(msg, 0, 0, bss->drv->global->nl80211_id, 0,
+	genlmsg_put(msg, 0, 0, global->nl80211_id, 0,
 		    0, NL80211_CMD_SET_WOWLAN, 0);
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, bss->drv->first_bss.ifindex);
@@ -9040,7 +9041,7 @@ static int nl80211_set_wowlan_triggers(struct i802_bss *bss, int enable)
 		 * so unicast traffic won't be dropped in any case.
 		 */
 
-		filters = bss->drv->wowlan_triggers |= 1;
+		filters = global->wowlan_triggers |= 1;
 
 		for (i = 0; i < NR_RX_FILTERS; i++) {
 			struct rx_filter *rx_filter = &rx_filters[i];
@@ -9093,20 +9094,31 @@ nla_put_failure:
 static int nl80211_toggle_wowlan_trigger(struct i802_bss *bss, int nr,
 					 int enabled)
 {
+	struct nl80211_global *global = bss->drv->global;
+	int prev_triggers;
+	int ret = 0;
 	if (nr >= NR_RX_FILTERS) {
 		wpa_printf(MSG_ERROR, "Unknown filter: %d\n", nr);
 		return -1;
 	}
 
+	prev_triggers = global->wowlan_triggers;
+
 	if (enabled)
-		bss->drv->wowlan_triggers |= 1 << nr;
+		global->wowlan_triggers |= 1 << nr;
 	else
-		bss->drv->wowlan_triggers &= ~(1 << nr);
+		global->wowlan_triggers &= ~(1 << nr);
 
-	if (bss->drv->wowlan_enabled)
-		nl80211_set_wowlan_triggers(bss, 1);
+	if (global->wowlan_enabled)
+		ret = nl80211_set_wowlan_triggers(bss, 1);
 
-	return 0;
+	if (ret < 0) {
+		wpa_printf(MSG_ERROR, "nl80211: Failed to set wowlan triggers "
+			   "(%d)", ret);
+		global->wowlan_triggers = prev_triggers;
+	}
+
+	return ret;
 }
 
 static int nl80211_parse_wowlan_trigger_nr(char *s)
