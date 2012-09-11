@@ -312,6 +312,10 @@ static int wpa_driver_nl80211_probe_req_report(void *priv, int report);
 static int android_pno_start(struct i802_bss *bss,
 			     struct wpa_driver_scan_params *params);
 static int android_pno_stop(struct i802_bss *bss);
+static int nl80211_register_rx_filter(struct i802_bss *bss, char *name,
+				      u8 *pattern, int len, u8 *mask,
+				      u8 action);
+static int nl80211_unregister_rx_filter(struct i802_bss *bss, int filter_idx);
 #endif /* ANDROID */
 #ifdef ANDROID_BRCM_P2P_PATCH
 static void mlme_event_deauth_disassoc(struct wpa_driver_nl80211_data *drv,
@@ -8897,7 +8901,9 @@ nl80211_self_filter_get_pattern_handler(u8 *buf, int buflen, void *arg)
 	return 0;
 }
 
-static struct rx_filter rx_filters[] = {
+#define NUM_RX_FILTERS 15
+
+static struct rx_filter rx_filters[NUM_RX_FILTERS] = {
 	/* ID 0 */
 	{.name = "self",
 	 .pattern = {},
@@ -8999,7 +9005,12 @@ static struct rx_filter rx_filters[] = {
 
 };
 
-#define NR_RX_FILTERS	(int)(sizeof(rx_filters) / sizeof(struct rx_filter))
+#define DIV_ROUND_UP(x, y) (((x) + (y - 1)) / (y))
+
+static inline int nl80211_rx_filter_configured(struct rx_filter *rx_filter)
+{
+	return (rx_filter->name != NULL);
+}
 
 static int nl80211_set_wowlan_triggers(struct i802_bss *bss, int enable)
 {
@@ -9043,10 +9054,13 @@ static int nl80211_set_wowlan_triggers(struct i802_bss *bss, int enable)
 
 		filters = global->wowlan_triggers |= 1;
 
-		for (i = 0; i < NR_RX_FILTERS; i++) {
+		for (i = 0; i < NUM_RX_FILTERS; i++) {
 			struct rx_filter *rx_filter = &rx_filters[i];
 			int patnr = 1;
 			u8 *pattern;
+
+			if (!nl80211_rx_filter_configured(rx_filter))
+				continue;
 
 			if (!(filters & (1 << i)))
 				continue;
@@ -9097,8 +9111,9 @@ static int nl80211_toggle_wowlan_trigger(struct i802_bss *bss, int nr,
 	struct nl80211_global *global = bss->drv->global;
 	int prev_triggers;
 	int ret = 0;
-	if (nr >= NR_RX_FILTERS) {
-		wpa_printf(MSG_ERROR, "Unknown filter: %d\n", nr);
+
+	if (nr >= NUM_RX_FILTERS) {
+		wpa_printf(MSG_ERROR, "nl80211: Invalid RX filter: %d\n", nr);
 		return -1;
 	}
 
@@ -9131,6 +9146,114 @@ static int nl80211_parse_wowlan_trigger_nr(char *s)
 	if(endp == s)
 		return -1;
 	return i;
+}
+
+/* Helper for nl80211_register_rx_filter. Don't call directly */
+static int nl80211_add_rx_filter(char *name, u8 *pattern, int len,
+				 u8 *mask, u8 action)
+{
+	int i, j, pos;
+
+	if (name == NULL || pattern == NULL || mask == NULL) {
+		wpa_printf(MSG_ERROR, "nl80211: Add RX filter failed: "
+			   "invalid params");
+		return -1;
+	}
+
+	if (len > MAX_PATTERN_SIZE) {
+		wpa_printf(MSG_ERROR, "nl80211: Add RX filter failed: "
+			   "Pattern too big (len=%d)", len);
+		return -1;
+	}
+
+	if (action > MAX_NL80211_WOWLAN_ACTION) {
+		wpa_printf(MSG_ERROR, "nl80211: Add RX filter failed: "
+			   "bad action (action=%d)", action);
+		return -1;
+	}
+
+	for (i = 0; i < NUM_RX_FILTERS; i++) {
+		struct rx_filter *filter = &rx_filters[i];
+
+		if (filter->name)
+			continue;
+
+		filter->name = name;
+		filter->pattern_len = len;
+		memcpy(filter->pattern, pattern, len);
+		for (j = 0; j < len; j++)
+			if (mask[j]) {
+				pos = j / 8;
+				filter->mask[pos] |= 1 << (j % 8);
+			}
+
+		filter->mask_len = DIV_ROUND_UP(len, 8);
+		filter->action = action;
+		break;
+	}
+
+	if (i == NUM_RX_FILTERS) {
+		wpa_printf(MSG_ERROR, "nl80211: Out of RX filters");
+		return -1;
+	}
+
+	return i;
+}
+
+/* Helper for nl80211_unregister_rx_filter. Don't call directly */
+static int nl80211_remove_rx_filter(int filter_idx)
+{
+	struct rx_filter *filter;
+
+	if (filter_idx < 0 || filter_idx >= NUM_RX_FILTERS) {
+		wpa_printf(MSG_ERROR, "nl80211: Failed to remove RX filter: "
+			   "bad filter (idx=%d)", filter_idx);
+		return -1;
+	}
+
+	filter = &rx_filters[filter_idx];
+	filter->name = NULL;
+	memset(filter->pattern, 0, MAX_PATTERN_SIZE);
+	memset(filter->mask, 0, MAX_MASK_SIZE);
+	filter->mask_len = 0;
+	filter->pattern_len = 0;
+	filter->action = 0;
+
+	return 0;
+}
+
+static int nl80211_register_rx_filter(struct i802_bss *bss, char *name,
+				      u8 *pattern, int len, u8 *mask, u8 action)
+{
+	int filter_idx, ret;
+
+	filter_idx = nl80211_add_rx_filter(name, pattern, len, mask, action);
+
+	if (filter_idx < 0)
+		return -1;
+
+	ret = nl80211_toggle_wowlan_trigger(bss, filter_idx, 1);
+	if (ret < 0)
+		goto fail;
+
+	return filter_idx;
+
+fail:
+	nl80211_remove_rx_filter(filter_idx);
+	return -1;
+}
+
+static int nl80211_unregister_rx_filter(struct i802_bss *bss, int filter_idx)
+{
+	int ret;
+
+	ret = nl80211_toggle_wowlan_trigger(bss, filter_idx, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = nl80211_remove_rx_filter(filter_idx);
+
+	return ret;
 }
 
 #endif /* ANDROID */
