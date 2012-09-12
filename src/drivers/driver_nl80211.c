@@ -9121,62 +9121,6 @@ static int nl80211_parse_wowlan_trigger_nr(char *s)
 	return i;
 }
 
-static int nl80211_toggle_dropbcast(int enable)
-{
-	char filename[90];
-	int rv;
-	FILE *f;
-
-	snprintf(filename, sizeof(filename) - 1,
-		 "/sys/bus/platform/devices/wl12xx/drop_bcast");
-	f = fopen(filename, "w");
-	if (!f) {
-		wpa_printf(MSG_DEBUG, "Could not open file %s: %s",
-			   filename, strerror(errno));
-		return -1;
-	}
-
-	rv = fprintf(f, "%d", enable);
-	fclose(f);
-	if (rv < 1) {
-		wpa_printf(MSG_DEBUG, "Could not write to file %s: %s",
-			   filename, strerror(errno));
-		return -1;
-	}
-
-	return 0;
-}
-
-static int nl80211_dropbcast_get(char *buf, size_t buf_len)
-{
-	char filename[90], value[10], *pos;
-	int f, rv;
-
-	snprintf(filename, sizeof(filename) - 1,
-		 "/sys/bus/platform/devices/wl12xx/drop_bcast");
-	f = open(filename, O_RDONLY);
-	if (f < 0) {
-		wpa_printf(MSG_DEBUG, "Could not open file %s: %s",
-			   filename, strerror(errno));
-		return -1;
-	}
-
-	rv = read(f, value, sizeof(value) - 1);
-	close(f);
-	if (rv < 0) {
-		wpa_printf(MSG_DEBUG, "Could not read file %s: %s",
-			   filename, strerror(errno));
-		return -1;
-	}
-
-	value[rv] = '\0';
-	pos = os_strchr(value, '\n');
-	if (pos)
-		*pos = '\0';
-
-	return snprintf(buf, buf_len, "Drop bcast = %s\n", value);
-}
-
 #endif /* ANDROID */
 
 static int nl80211_add_pmkid(void *priv, const u8 *bssid, const u8 *pmkid)
@@ -9683,24 +9627,6 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 		return nl80211_set_wowlan_triggers(bss, 1);
 	} else if (os_strcasecmp(cmd, "RXFILTER-STOP") == 0) {
 		return nl80211_set_wowlan_triggers(bss, 0);
-	} else if (os_strncasecmp(cmd, "DROPBCAST", 9) == 0) {
-		char *value = cmd + 10;
-
-		if (!os_strcasecmp(value, "ENABLE") ||
-		    !os_strcasecmp(value, "1")) {
-			ret = nl80211_toggle_dropbcast(1);
-		} else if (!os_strcasecmp(value, "DISABLE") ||
-			   !os_strcasecmp(value, "0")) {
-			ret = nl80211_toggle_dropbcast(0);
-		} else if (!os_strcasecmp(value, "GET") ||
-			   !os_strlen(value)) {
-			ret = nl80211_dropbcast_get(buf, buf_len);
-		} else {
-			wpa_printf(MSG_ERROR,
-				   "Invalid parameter for DROPBCAST: %s",
-				   value);
-			ret = -1;
-		}
 	} else if( os_strcasecmp(cmd, "LINKSPEED") == 0 ) {
 		struct wpa_signal_info sig;
 		int linkspeed;
