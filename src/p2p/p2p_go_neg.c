@@ -161,7 +161,7 @@ static struct wpabuf * p2p_build_go_neg_req(struct p2p_data *p2p,
 	p2p_buf_add_go_intent(buf, (p2p->go_intent << 1) |
 			      p2p->next_tie_breaker);
 	p2p->next_tie_breaker = !p2p->next_tie_breaker;
-	p2p_buf_add_config_timeout(buf, 100, 20);
+	p2p_buf_add_config_timeout(buf, p2p->go_timeout, p2p->client_timeout);
 	p2p_buf_add_listen_channel(buf, p2p->cfg->country, p2p->cfg->reg_class,
 				   p2p->cfg->channel);
 	if (p2p->ext_listen_interval)
@@ -274,7 +274,7 @@ static struct wpabuf * p2p_build_go_neg_resp(struct p2p_data *p2p,
 			       ~P2P_DEV_CAPAB_CLIENT_DISCOVERABILITY,
 			       group_capab);
 	p2p_buf_add_go_intent(buf, (p2p->go_intent << 1) | tie_breaker);
-	p2p_buf_add_config_timeout(buf, 100, 20);
+	p2p_buf_add_config_timeout(buf, p2p->go_timeout, p2p->client_timeout);
 	if (peer && peer->go_state == REMOTE_GO) {
 		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG, "P2P: Omit Operating "
 			"Channel attribute");
@@ -364,6 +364,35 @@ static void p2p_reselect_channel(struct p2p_data *p2p,
 				p2p->op_reg_class, p2p->op_channel);
 			return;
 		}
+	}
+
+	/* Try a channel where we might be able to use HT40 */
+	for (i = 0; i < intersection->reg_classes; i++) {
+		struct p2p_reg_class *c = &intersection->reg_class[i];
+		if (c->reg_class == 116 || c->reg_class == 117 ||
+		    c->reg_class == 126 || c->reg_class == 127) {
+			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
+				"P2P: Pick possible HT40 channel (reg_class "
+				"%u channel %u) from intersection",
+				c->reg_class, c->channel[0]);
+			p2p->op_reg_class = c->reg_class;
+			p2p->op_channel = c->channel[0];
+			return;
+		}
+	}
+
+	/*
+	 * Try to see if the original channel is in the intersection. If
+	 * so, no need to change anything, as it already contains some
+	 * randomness.
+	 */
+	if (p2p_channels_includes(intersection, p2p->op_reg_class,
+				  p2p->op_channel)) {
+		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
+			"P2P: Using original operating class and channel "
+			"(reg_class %u channel %u) from intersection",
+			p2p->op_reg_class, p2p->op_channel);
+		return;
 	}
 
 	/*
@@ -623,7 +652,8 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 				wpa_hexdump(MSG_DEBUG, "P2P: channels",
 					    c->channel, c->channels);
 			}
-			if (!p2p_channels_includes(&intersection,
+			if (!p2p->cfg->cfg_op_channel ||
+			    !p2p_channels_includes(&intersection,
 						   p2p->op_reg_class,
 						   p2p->op_channel))
 				p2p_reselect_channel(p2p, &intersection);
@@ -700,7 +730,7 @@ fail:
 			P2P_PENDING_GO_NEG_RESPONSE_FAILURE;
 	if (p2p_send_action(p2p, freq, sa, p2p->cfg->dev_addr,
 			    p2p->cfg->dev_addr,
-			    wpabuf_head(resp), wpabuf_len(resp), 200) < 0) {
+			    wpabuf_head(resp), wpabuf_len(resp), 250) < 0) {
 		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
 			"P2P: Failed to send Action frame");
 	}

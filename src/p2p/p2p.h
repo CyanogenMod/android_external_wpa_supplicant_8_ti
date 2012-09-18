@@ -75,6 +75,8 @@ struct p2p_go_neg_results {
 	 */
 	int freq;
 
+	int ht40;
+
 	/**
 	 * ssid - SSID of the group
 	 */
@@ -1688,6 +1690,16 @@ int p2p_set_pref_chan(struct p2p_data *p2p, unsigned int num_pref_chan,
  */
 int p2p_in_progress(struct p2p_data *p2p);
 
+/**
+ * p2p_non_idle - Check whether P2P is not in P2P_IDLE. That
+ * means we're in either search, GO neg or provisioing. Once connected
+ * it's back to idle. p2p_in_progress excludes provisioing.
+ * @p2p: P2P module context from p2p_init()
+ * Returns: 0 if P2P module is idle or 1 if an operation is in progress
+ */
+int p2p_non_idle(struct p2p_data *p2p);
+
+
 #ifdef ANDROID_P2P
 /**
  * p2p_search_in_progress - Check whether a P2P SEARCH is in progress
@@ -1714,5 +1726,14 @@ int p2p_other_scan_completed(struct p2p_data *p2p);
 const char * p2p_wps_method_text(enum p2p_wps_method method);
 
 int p2p_prepare_channel(struct p2p_data *p2p, unsigned int force_freq);
+
+/**
+ * p2p_set_config_timeout - Set local config timeouts
+ * @p2p: P2P module context from p2p_init()
+ * @go_timeout: Time in 10 ms units it takes to start the GO mode
+ * @client_timeout: Time in 10 ms units it takes to start the client mode
+ */
+void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
+			    u8 client_timeout);
 
 #endif /* P2P_H */

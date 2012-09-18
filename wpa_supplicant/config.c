@@ -2542,9 +2542,9 @@ struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 	const struct wpa_wmm_ac_params ac_be =
 		{ aCWmin, aCWmax, 3, 0, 0 }; /* best effort traffic */
 	const struct wpa_wmm_ac_params ac_vi = /* video traffic */
-		{ aCWmin - 1, aCWmin, 2, 3000 / 32, 1 };
+		{ aCWmin - 1, aCWmin, 2, 3000 / 32, 0 };
 	const struct wpa_wmm_ac_params ac_vo = /* voice traffic */
-		{ aCWmin - 2, aCWmin - 1, 2, 1500 / 32, 1 };
+		{ aCWmin - 2, aCWmin - 1, 2, 1500 / 32, 0 };
 
 	config = os_zalloc(sizeof(*config));
 	if (config == NULL)
@@ -2994,6 +2994,7 @@ static const struct global_parse_data global_fields[] = {
 	{ BIN(wps_nfc_dh_privkey), 0 },
 	{ BIN(wps_nfc_dev_pw), 0 },
 	{ INT(p2p_go_max_inactivity), 0 },
+	{ INT(p2p_go_ht40), 0 },
 	{ INT_RANGE(sched_scan_num_short_intervals, 0,
 		    MAX_NUM_SCHED_SCAN_SHORT_INTERVALS), 0 },
 	{ INT_RANGE(sched_scan_short_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },

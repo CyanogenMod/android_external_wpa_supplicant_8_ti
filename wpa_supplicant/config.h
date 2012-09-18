@@ -692,6 +692,16 @@ struct wpa_config {
 	int p2p_go_max_inactivity;
 
 	/**
+	 * p2p_go_ht40 - Default mode for HT40 enable when operating as GO.
+	 *
+	 * This will take effect for p2p_group_add and p2p_connect. Note that
+	 * regulatory constraints and driver capabilities are consulted anyway,
+	 * so setting it to 1 can't do real harm
+	 * By default: 0 (disabled)
+	 */
+	int p2p_go_ht40;
+
+	/**
 	 * sched_scan_short_interval - Initial interval for sched scan in secs
 	 * sched scan will start with this interval for num_short_intervals
 	 * intervals and then switch to a longer interval defined by
