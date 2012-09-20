@@ -1889,4 +1889,34 @@ void ieee802_11_rx_from_unknown(struct hostapd_data *hapd, const u8 *src,
 }
 
 
+int ieee802_11_start_channel_switch(struct hostapd_data *hapd,
+				    int freq, u8 radar_detected)
+{
+	struct hostapd_channel_data *next_channel;
+
+	next_channel = hostapd_get_valid_channel(hapd, freq);
+	if (!next_channel)
+		return -1;
+
+	hapd->next_channel = next_channel;
+	u8 radar_on_next_channel =
+		(next_channel->flag & HOSTAPD_CHAN_RADAR) ? 1 : 0;
+	wpa_printf(MSG_INFO, "switching to %sch. #%d, freq %d",
+		   radar_on_next_channel ? "(DFS) " : "",
+		   next_channel->chan, next_channel->freq);
+
+	/* Add CSA */
+	ieee802_11_set_beacon(hapd);
+
+	if (hostapd_channel_switch(hapd, next_channel->freq,
+				   next_channel->flag,
+				   radar_detected,
+				   radar_on_next_channel)) {
+		wpa_printf(MSG_ERROR, "Channel switch failed");
+		return -1;
+	}
+	return 0;
+}
+
+
 #endif /* CONFIG_NATIVE_WINDOWS */

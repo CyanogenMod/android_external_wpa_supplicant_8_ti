@@ -432,6 +432,9 @@ struct hostapd_config {
 
 	int ieee80211d;
 
+	/* AP/GO channel switch count */
+	int channel_switch_count;
+
 	struct hostapd_tx_queue_params tx_queue[NUM_TX_QUEUES];
 
 	/*

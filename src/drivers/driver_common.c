@@ -82,6 +82,7 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(ROAMING_ENABLED);
 	E2S(ROAMING_DISABLED);
 	E2S(START_ROAMING);
+	E2S(REQ_CH_SW);
 	}
 
 	return "UNKNOWN";

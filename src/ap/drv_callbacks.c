@@ -27,6 +27,7 @@
 #include "ap_drv_ops.h"
 #include "ap_config.h"
 #include "hw_features.h"
+#include "beacon.h"
 
 
 int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
@@ -286,8 +287,6 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
 		       HOSTAPD_LEVEL_INFO, "driver had channel switch: "
 		       "freq=%d, ht=%d, offset=%d", freq, ht, offset);
 
-	hapd->iface->freq = freq;
-
 	channel = hostapd_hw_get_channel(hapd, freq);
 	if (!channel) {
 		hostapd_logger(hapd, NULL, HOSTAPD_MODULE_IEEE80211,
@@ -299,6 +298,30 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
 	hapd->iconf->channel = channel;
 	hapd->iconf->ieee80211n = ht;
 	hapd->iconf->secondary_channel = offset;
+
+
+	if (hapd->iface->freq == freq)
+	        return;
+
+	hapd->iface->freq = freq;
+
+	if (hostapd_set_freq(hapd, hapd->iconf->hw_mode, freq,
+			     hapd->iconf->channel,
+			     hapd->iconf->ieee80211n,
+			     hapd->iconf->secondary_channel)) {
+		hostapd_logger(hapd, NULL, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_WARNING,
+			       "failed to update the freq !");
+		return;
+	}
+
+	hapd->next_channel = NULL;
+
+	/* update the DS IE */
+	ieee802_11_set_beacon(hapd);
+
+	wpa_printf(MSG_DEBUG, "AP/GO moved to channel %d", channel);
+
 #endif /* NEED_AP_MLME */
 }
 
@@ -626,6 +649,12 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		hostapd_event_ch_switch(hapd, data->ch_switch.freq,
 					data->ch_switch.ht_enabled,
 					data->ch_switch.ch_offset);
+		break;
+	case EVENT_REQ_CH_SW:
+		if (!data)
+			break;
+		ieee802_11_start_channel_switch(hapd, data->ch_switch.freq,
+						FALSE);
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "Unknown event %d", event);

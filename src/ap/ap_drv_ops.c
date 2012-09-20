@@ -596,3 +596,34 @@ int hostapd_drv_send_action(struct hostapd_data *hapd, unsigned int freq,
 					 hapd->own_addr, hapd->own_addr, data,
 					 len, 0);
 }
+
+
+int hostapd_channel_switch(struct hostapd_data *hapd, int freq, int flags,
+			   u8 tx_block, u8 post_switch_block_tx)
+{
+	struct hostapd_channel_switch params;
+
+	if (!hapd->driver || !hapd->driver->hapd_channel_switch)
+		return 0;
+
+	if (flags & HOSTAPD_CHAN_RADAR) {
+		wpa_printf(MSG_ERROR, "Can't switch to radar channel, "
+			   "DFS functionality is not supported");
+		return -1;
+	}
+
+	if (hapd->iface->conf->secondary_channel) {
+		wpa_printf(MSG_ERROR, "Channel switch is not supported "
+			   "with HT40");
+		return -1;
+	}
+
+	params.freq = freq;
+	params.tx_block = tx_block;
+	params.post_switch_block_tx = post_switch_block_tx;
+	params.ch_switch_count =
+	        (hapd->iconf->channel_switch_count > hapd->conf->dtim_period) ?
+	        hapd->iconf->channel_switch_count : hapd->conf->dtim_period * 2;
+
+	return hapd->driver->hapd_channel_switch(hapd->drv_priv, &params);
+}
