@@ -2995,6 +2995,7 @@ static const struct global_parse_data global_fields[] = {
 	{ BIN(wps_nfc_dev_pw), 0 },
 	{ INT(p2p_go_max_inactivity), 0 },
 	{ INT(p2p_go_ht40), 0 },
+	{ INT(p2p_multi_chan), 0 },
 	{ INT_RANGE(sched_scan_num_short_intervals, 0,
 		    MAX_NUM_SCHED_SCAN_SHORT_INTERVALS), 0 },
 	{ INT_RANGE(sched_scan_short_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },

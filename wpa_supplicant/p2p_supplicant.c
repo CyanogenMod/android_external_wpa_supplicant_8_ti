@@ -3264,13 +3264,17 @@ int wpas_p2p_connect(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 		return ret;
 	}
 
-	if (wpa_s->current_ssid && wpa_drv_get_bssid(wpa_s, bssid) == 0 &&
-	    wpa_s->assoc_freq)
-		oper_freq = wpa_s->assoc_freq;
-	else {
-		oper_freq = wpa_drv_shared_freq(wpa_s);
-		if (oper_freq < 0)
-			oper_freq = 0;
+	if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) &&
+	    !wpa_s->conf->p2p_multi_chan) {
+		if (wpa_s->current_ssid &&
+		    wpa_drv_get_bssid(wpa_s, bssid) == 0 &&
+		    wpa_s->assoc_freq)
+			oper_freq = wpa_s->assoc_freq;
+		else {
+			oper_freq = wpa_drv_shared_freq(wpa_s);
+			if (oper_freq < 0)
+				oper_freq = 0;
+		}
 	}
 
 	if (freq > 0) {
