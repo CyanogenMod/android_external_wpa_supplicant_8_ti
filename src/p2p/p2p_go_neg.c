@@ -1043,7 +1043,8 @@ void p2p_process_go_neg_resp(struct p2p_data *p2p, const u8 *sa,
 			wpa_hexdump(MSG_DEBUG, "P2P: channels",
 				    c->channel, c->channels);
 		}
-		if (!p2p_channels_includes(&intersection, p2p->op_reg_class,
+		if (!p2p->cfg->cfg_op_channel ||
+		    !p2p_channels_includes(&intersection, p2p->op_reg_class,
 					   p2p->op_channel))
 			p2p_reselect_channel(p2p, &intersection);
 
