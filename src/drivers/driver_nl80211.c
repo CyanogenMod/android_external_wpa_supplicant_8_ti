@@ -9789,6 +9789,9 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 		return nl80211_set_wowlan_triggers(bss, 1);
 	} else if (os_strcasecmp(cmd, "RXFILTER-STOP") == 0) {
 		return nl80211_set_wowlan_triggers(bss, 0);
+	} else if (os_strcasecmp(cmd, "SETBAND") == 0) {
+		/* Do nothing: Handled by wpa_supplicant_driver_cmd */
+		ret = 0;
 	} else {
 		wpa_printf(MSG_ERROR, "Unsupported command: %s", cmd);
 		ret = -1;
