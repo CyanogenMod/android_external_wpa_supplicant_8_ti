@@ -3969,6 +3969,18 @@ static void wpas_p2p_clear_pending_action_tx(struct wpa_supplicant *wpa_s)
 	wpa_s->pending_action_tx = NULL;
 }
 
+static int wpas_p2p_connected(struct wpa_supplicant *wpa_s)
+{
+	struct wpa_supplicant *iface;
+
+	for (iface = wpa_s->global->ifaces; iface; iface = iface->next) {
+		if (iface->p2p_group_interface == P2P_GROUP_INTERFACE_GO ||
+		    iface->p2p_group_interface == P2P_GROUP_INTERFACE_CLIENT)
+			return 1;
+	}
+
+	return 0;
+}
 
 int wpas_p2p_find(struct wpa_supplicant *wpa_s, unsigned int timeout,
 		  enum p2p_discovery_type type,
@@ -3984,6 +3996,14 @@ int wpas_p2p_find(struct wpa_supplicant *wpa_s, unsigned int timeout,
 	if (wpa_s->global->p2p_disabled || wpa_s->global->p2p == NULL ||
 	    wpa_s->p2p_in_provisioning)
 		return -1;
+
+
+	if (!(wpa_s->drv_flags &
+	      WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) &&
+	    wpas_p2p_connected(wpa_s)) {
+		wpa_printf(MSG_DEBUG, "P2P: find blocked due to active GO/CLI");
+		return -1;
+	}
 
 	wpa_supplicant_cancel_sched_scan(wpa_s);
 
