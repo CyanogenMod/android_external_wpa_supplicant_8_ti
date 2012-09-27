@@ -5036,6 +5036,12 @@ int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s, int freq)
 							iface->current_ssid->frequency = freq;
 							continue;
 					}
+
+				/* some drivers can handle this on their own */
+				if (wpa_s->driver->hapd_channel_switch) {
+					wpa_printf(MSG_INFO, "P2P: GO Ch. switch will be initiated by the driver");
+					continue;
+				}
 			}
 
 			/*
