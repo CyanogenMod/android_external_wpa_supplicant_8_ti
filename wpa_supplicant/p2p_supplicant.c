@@ -4916,6 +4916,24 @@ int wpas_p2p_unauthorize(struct wpa_supplicant *wpa_s, const char *addr)
 	return p2p_unauthorize(p2p, peer);
 }
 
+int wpas_is_p2p_iface(struct wpa_supplicant *wpa_s)
+{
+	struct wpa_ssid *ssid;
+
+	if (wpa_s->p2p_group_interface != NOT_P2P_GROUP_INTERFACE)
+		return 1;
+
+	/* P2P GO in case no group iface */
+	if (wpa_s->p2p_group)
+		return 1;
+
+	/* P2P CLI in case no group iface */
+	ssid = wpa_s->current_ssid;
+	if (ssid && ssid->p2p_group)
+		return 1;
+
+	return 0;
+}
 
 /**
  * wpas_p2p_disconnect - Disconnect from a P2P Group
@@ -4933,6 +4951,12 @@ int wpas_p2p_disconnect(struct wpa_supplicant *wpa_s)
 
 	if (wpa_s == NULL)
 		return -1;
+
+	if (!wpas_is_p2p_iface(wpa_s)) {
+		wpa_printf(MSG_DEBUG, "P2P: No group to disconnect on %s",
+			   wpa_s->ifname);
+		return -1;
+	}
 
 	wpa_s->removal_reason = P2P_GROUP_REMOVAL_REQUESTED;
 	wpas_p2p_group_delete(wpa_s, 0);
