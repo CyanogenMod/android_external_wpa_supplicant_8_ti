@@ -743,6 +743,10 @@ struct wpa_config {
 	 */
 	int p2p_conc_mode;
 #endif
+	/*
+	 * p2p_disabled - Whether P2P operations are disabled for this interface
+	 */
+	int p2p_disabled;
 };
 
 
