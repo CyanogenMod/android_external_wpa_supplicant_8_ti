@@ -3264,13 +3264,17 @@ int wpas_p2p_connect(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 		return ret;
 	}
 
-	if (wpa_s->current_ssid && wpa_drv_get_bssid(wpa_s, bssid) == 0 &&
-	    wpa_s->assoc_freq)
-		oper_freq = wpa_s->assoc_freq;
-	else {
-		oper_freq = wpa_drv_shared_freq(wpa_s);
-		if (oper_freq < 0)
-			oper_freq = 0;
+	if (!(wpa_s->drv_flags & WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) ||
+	    !wpa_s->conf->p2p_multi_chan) {
+		if (wpa_s->current_ssid &&
+		    wpa_drv_get_bssid(wpa_s, bssid) == 0 &&
+		    wpa_s->assoc_freq)
+			oper_freq = wpa_s->assoc_freq;
+		else {
+			oper_freq = wpa_drv_shared_freq(wpa_s);
+			if (oper_freq < 0)
+				oper_freq = 0;
+		}
 	}
 
 	if (freq > 0) {
@@ -3965,6 +3969,18 @@ static void wpas_p2p_clear_pending_action_tx(struct wpa_supplicant *wpa_s)
 	wpa_s->pending_action_tx = NULL;
 }
 
+static int wpas_p2p_connected(struct wpa_supplicant *wpa_s)
+{
+	struct wpa_supplicant *iface;
+
+	for (iface = wpa_s->global->ifaces; iface; iface = iface->next) {
+		if (iface->p2p_group_interface == P2P_GROUP_INTERFACE_GO ||
+		    iface->p2p_group_interface == P2P_GROUP_INTERFACE_CLIENT)
+			return 1;
+	}
+
+	return 0;
+}
 
 int wpas_p2p_find(struct wpa_supplicant *wpa_s, unsigned int timeout,
 		  enum p2p_discovery_type type,
@@ -3980,6 +3996,14 @@ int wpas_p2p_find(struct wpa_supplicant *wpa_s, unsigned int timeout,
 	if (wpa_s->global->p2p_disabled || wpa_s->global->p2p == NULL ||
 	    wpa_s->p2p_in_provisioning)
 		return -1;
+
+
+	if (!(wpa_s->drv_flags &
+	      WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT) &&
+	    wpas_p2p_connected(wpa_s)) {
+		wpa_printf(MSG_DEBUG, "P2P: find blocked due to active GO/CLI");
+		return -1;
+	}
 
 	wpa_supplicant_cancel_sched_scan(wpa_s);
 
@@ -4892,6 +4916,24 @@ int wpas_p2p_unauthorize(struct wpa_supplicant *wpa_s, const char *addr)
 	return p2p_unauthorize(p2p, peer);
 }
 
+int wpas_is_p2p_iface(struct wpa_supplicant *wpa_s)
+{
+	struct wpa_ssid *ssid;
+
+	if (wpa_s->p2p_group_interface != NOT_P2P_GROUP_INTERFACE)
+		return 1;
+
+	/* P2P GO in case no group iface */
+	if (wpa_s->p2p_group)
+		return 1;
+
+	/* P2P CLI in case no group iface */
+	ssid = wpa_s->current_ssid;
+	if (ssid && ssid->p2p_group)
+		return 1;
+
+	return 0;
+}
 
 /**
  * wpas_p2p_disconnect - Disconnect from a P2P Group
@@ -4909,6 +4951,12 @@ int wpas_p2p_disconnect(struct wpa_supplicant *wpa_s)
 
 	if (wpa_s == NULL)
 		return -1;
+
+	if (!wpas_is_p2p_iface(wpa_s)) {
+		wpa_printf(MSG_DEBUG, "P2P: No group to disconnect on %s",
+			   wpa_s->ifname);
+		return -1;
+	}
 
 	wpa_s->removal_reason = P2P_GROUP_REMOVAL_REQUESTED;
 	wpas_p2p_group_delete(wpa_s, 0);
@@ -5032,6 +5080,12 @@ int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s, int freq)
 							iface->current_ssid->frequency = freq;
 							continue;
 					}
+
+				/* some drivers can handle this on their own */
+				if (wpa_s->driver->hapd_channel_switch) {
+					wpa_printf(MSG_INFO, "P2P: GO Ch. switch will be initiated by the driver");
+					continue;
+				}
 			}
 
 			/*

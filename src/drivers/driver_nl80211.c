@@ -9785,6 +9785,9 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 		if(i < 0)
 			return i;
 		return nl80211_toggle_wowlan_trigger(bss, i, 0);
+	} else if (os_strncasecmp(cmd, "SETBAND ", 8) == 0) {
+		/* Do nothing: Handled by wpa_supplicant_driver_cmd */
+		return 0;
 	} else if (os_strcasecmp(cmd, "RXFILTER-START") == 0) {
 		return nl80211_set_wowlan_triggers(bss, 1);
 	} else if (os_strcasecmp(cmd, "RXFILTER-STOP") == 0) {

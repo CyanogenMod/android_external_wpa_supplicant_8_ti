@@ -2974,6 +2974,9 @@ int p2p_handle_concurrency_conflicts(struct wpa_supplicant *wpa_s, int *go_inten
 	struct wpa_supplicant *iface = NULL;
 	struct p2p_data *p2p = wpa_s->global->p2p;
 
+	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_MULTI_CHANNEL_CONCURRENT)
+		return 0;
+
 	wpa_printf(MSG_INFO, "p2p: handling concurrency conflicts");
 
 	/* we only fear frequency conflicts */
