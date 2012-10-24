@@ -1062,6 +1062,7 @@ void p2p_process_go_neg_conf(struct p2p_data *p2p, const u8 *sa,
 
 	p2p_dbg(p2p, "Received GO Negotiation Confirm from " MACSTR,
 		MAC2STR(sa));
+	p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 	dev = p2p_get_device(p2p, sa);
 	if (dev == NULL || dev->wps_method == WPS_NOT_READY ||
 	    dev != p2p->go_neg_peer) {
