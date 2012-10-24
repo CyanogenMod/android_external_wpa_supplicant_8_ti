@@ -2375,11 +2375,8 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
 	wpa_s->prev_scan_wildcard = 0;
 
 	if (wpa_supplicant_enabled_networks(wpa_s)) {
-#ifdef ANDROID
-		wpa_supplicant_req_scan(wpa_s, wpa_s->scan_interval, 0);
-#else
-		wpa_supplicant_req_scan(wpa_s, interface_count, 100000);
-#endif
+		wpa_supplicant_delayed_sched_scan(wpa_s,
+						  interface_count, 100000);
 		interface_count++;
 	} else
 		wpa_supplicant_set_state(wpa_s, WPA_INACTIVE);
