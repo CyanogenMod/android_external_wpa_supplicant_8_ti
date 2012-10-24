@@ -5233,6 +5233,7 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 			}
 		} else if (os_strncasecmp(cmd, "SETBAND ", 8) == 0) {
 			int val = atoi(cmd + 8);
+			uint setband = 0;
 			/*
 			 * Use driver_cmd for drivers that support it, but ignore the
 			 * return value since scan requests from wpa_supplicant will
@@ -5243,12 +5244,22 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 			wpa_drv_driver_cmd(wpa_s, cmd, buf, buflen);
 			ret = 0;
 			if (val == 0)
-				wpa_s->setband = WPA_SETBAND_AUTO;
+				setband = WPA_SETBAND_AUTO;
 			else if (val == 1)
-				wpa_s->setband = WPA_SETBAND_5G;
+				setband = WPA_SETBAND_5G;
 			else if (val == 2)
-				wpa_s->setband = WPA_SETBAND_2G;
+				setband = WPA_SETBAND_2G;
+			else {
+				ret = -1;
+				goto out;
+			}
 
+			if (wpa_s->setband == setband) {
+				wpa_printf(MSG_DEBUG, "Same setband as before");
+				goto out;
+			}
+
+			wpa_s->setband = setband;
 			if (wpa_s->current_bss &&
 			    !wpa_bss_in_current_band(wpa_s,
 						     wpa_s->current_bss))
@@ -5259,7 +5270,7 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 			ret = os_snprintf(buf, buflen, "%s\n", "OK");
 		}
 	}
-
+out:
 	if (ret == 0)
 		ret = os_snprintf(buf, buflen, "%s\n", "OK");
 
