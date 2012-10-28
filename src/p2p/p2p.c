@@ -4102,14 +4102,6 @@ int p2p_in_progress(struct p2p_data *p2p)
 	return p2p->state != P2P_IDLE && p2p->state != P2P_PROVISIONING;
 }
 
-int p2p_non_idle(struct p2p_data *p2p)
-{
-	if (p2p == NULL)
-		return 0;
-	return p2p->state != P2P_IDLE;
-}
-
-
 void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
 			    u8 client_timeout)
 {
