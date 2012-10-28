@@ -3001,6 +3001,7 @@ static const struct global_parse_data global_fields[] = {
 		    MAX_NUM_SCHED_SCAN_SHORT_INTERVALS), 0 },
 	{ INT_RANGE(sched_scan_short_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },
 	{ INT_RANGE(sched_scan_long_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },
+	{ INT_RANGE(concurrent_sched_scan, 0, 1), 0 },
 };
 
 #undef FUNC

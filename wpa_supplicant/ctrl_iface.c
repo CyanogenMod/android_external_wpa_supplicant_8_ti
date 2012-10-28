@@ -4577,13 +4577,16 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED)
 			reply_len = -1;
 		else {
-			if (!wpa_s->sched_scanning && !wpa_s->scanning &&
+			if ((wpa_s->conf->concurrent_sched_scan ||
+			     !wpa_s->sched_scanning) &&
+			     !wpa_s->scanning &&
 			    ((wpa_s->wpa_state <= WPA_SCANNING) ||
 			     (wpa_s->wpa_state == WPA_COMPLETED))) {
 				wpa_s->normal_scans = 0;
 				wpa_s->scan_req = 2;
 				wpa_supplicant_req_scan(wpa_s, 0, 0);
-			} else if (wpa_s->sched_scanning) {
+			} else if (wpa_s->sched_scanning &&
+				!wpa_s->conf->concurrent_sched_scan) {
 				wpa_printf(MSG_DEBUG, "Stop ongoing "
 					   "sched_scan to allow requested "
 					   "full scan to proceed");

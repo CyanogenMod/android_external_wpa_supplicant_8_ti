@@ -747,6 +747,12 @@ struct wpa_config {
 	 * p2p_disabled - Whether P2P operations are disabled for this interface
 	 */
 	int p2p_disabled;
+
+	/*
+	 * concurrent_sched_scan - sched scan can run concurrently with normal
+	 * scan and no need to stop one to do the other.
+	 */
+	int concurrent_sched_scan;
 };
 
 
