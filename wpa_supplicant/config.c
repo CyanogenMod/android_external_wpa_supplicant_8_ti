@@ -3166,6 +3166,7 @@ static const struct global_parse_data global_fields[] = {
 	{ BIN(wps_nfc_dev_pw), CFG_CHANGED_NFC_PASSWORD_TOKEN },
 	{ STR(ext_password_backend), CFG_CHANGED_EXT_PW_BACKEND },
 	{ INT(p2p_go_max_inactivity), 0 },
+	{ INT_RANGE(concurrent_sched_scan, 0, 1), 0 },
 	{ INT_RANGE(auto_interworking, 0, 1), 0 },
 	{ INT(okc), 0 },
 	{ INT(pmf), 0 },

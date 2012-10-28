@@ -900,6 +900,12 @@ struct wpa_config {
 	 * sched_scan_num_short_intervals - see sched_scan_short_interval
 	 */
 	int sched_scan_num_short_intervals;
+
+	/*
+	 * concurrent_sched_scan - sched scan can run concurrently with normal
+	 * scan and no need to stop one to do the other.
+	 */
+	int concurrent_sched_scan;
 };
 
 

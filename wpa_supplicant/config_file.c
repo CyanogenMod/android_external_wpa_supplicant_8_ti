@@ -1061,6 +1061,10 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	    DEFAULT_SCHED_SCAN_LONG_INTERVAL)
 		fprintf(f, "sched_scan_long_intervals=%u\n",
 			config->sched_scan_long_interval);
+
+	if (config->concurrent_sched_scan)
+		fprintf(f, "concurrent_sched_scan=%u\n",
+			config->concurrent_sched_scan);
 }
 
 #endif /* CONFIG_NO_CONFIG_WRITE */
