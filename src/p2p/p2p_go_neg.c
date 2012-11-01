@@ -857,6 +857,7 @@ void p2p_process_go_neg_resp(struct p2p_data *p2p, const u8 *sa,
 		return;
 	}
 	dev->flags &= ~P2P_DEV_WAIT_GO_NEG_RESPONSE;
+	p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 
 	if (msg.dialog_token != dev->dialog_token) {
 		p2p_dbg(p2p, "Unexpected Dialog Token %u (expected %u)",
@@ -883,7 +884,6 @@ void p2p_process_go_neg_resp(struct p2p_data *p2p, const u8 *sa,
 			p2p_dbg(p2p, "Stop GO Negotiation attempt");
 			p2p_go_neg_failed(p2p, dev, *msg.status);
 		}
-		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 		p2p_parse_free(&msg);
 		return;
 	}
