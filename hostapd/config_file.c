@@ -116,8 +116,8 @@ static int hostapd_acl_comp(const void *a, const void *b)
 }
 
 
-static int hostapd_config_read_maclist(const char *fname,
-				       struct mac_acl_entry **acl, int *num)
+int hostapd_config_read_maclist(const char *fname,
+				struct mac_acl_entry **acl, int *num)
 {
 	FILE *f;
 	char buf[128], *pos;
