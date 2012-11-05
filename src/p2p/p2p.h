@@ -1837,4 +1837,10 @@ int p2p_set_disc_int(struct p2p_data *p2p, int min_disc_int, int max_disc_int,
  */
 const char * p2p_get_state_txt(struct p2p_data *p2p);
 
+/**
+ * p2p_group_get_interface_addr - Get the interface address of a P2P group
+ * @group: P2P group context from p2p_group_init()
+ */
+const u8 *p2p_group_get_interface_addr(struct p2p_group *group);
+
 #endif /* P2P_H */

@@ -5031,6 +5031,22 @@ void wpas_p2p_rx_action(struct wpa_supplicant *wpa_s, const u8 *da,
 	if (wpa_s->global->p2p == NULL)
 		return;
 
+	/*
+	 * Discard an Rx duplication created by mac80211 rx path
+	 * when receiving public action frames with mismatched BSSID
+	 * In case of separate GO interface such public action frames (prov disc
+	 * dev disc, invites) these should be handled by the P2P dev interface
+	 */
+	if (wpa_s->p2p_group_interface == P2P_GROUP_INTERFACE_GO &&
+	    category == WLAN_ACTION_PUBLIC &&
+	    wpa_s->p2p_group &&
+	    os_memcmp(bssid, p2p_group_get_interface_addr(wpa_s->p2p_group),
+		      ETH_ALEN)) {
+		wpa_printf(MSG_DEBUG, "Discard duplicate RX action event on"
+			   " P2P GO interface");
+		return;
+	}
+
 	p2p_rx_action(wpa_s->global->p2p, da, sa, bssid, category, data, len,
 		      freq);
 }
