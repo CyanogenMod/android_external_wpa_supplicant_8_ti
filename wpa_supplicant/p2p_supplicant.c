@@ -4137,6 +4137,12 @@ void wpas_p2p_rx_action(struct wpa_supplicant *wpa_s, const u8 *da,
 	if (wpa_s->global->p2p == NULL)
 		return;
 
+	if (wpa_s->p2p_group_interface != NOT_P2P_GROUP_INTERFACE) {
+		wpa_printf(MSG_DEBUG, "Discard RX action event on P2P "
+			   "GO/CLI iface. P2P Device interface will handle it");
+		return;
+	}
+
 	p2p_rx_action(wpa_s->global->p2p, da, sa, bssid, category, data, len,
 		      freq);
 }
