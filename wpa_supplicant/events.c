@@ -1381,9 +1381,26 @@ int wpas_select_network_from_last_scan(struct wpa_supplicant *wpa_s,
 				return 1;
 			}
 #endif /* CONFIG_INTERWORKING */
-			if (wpa_supplicant_req_sched_scan(wpa_s))
+
+			/*
+			 * If sched scan results were received but we didn't
+			 * connect then there's an AP with a matching SSID
+			 * which may have mismatching security. Don't restart
+			 * another sched scan immediately and wait for the next
+			 * normal scan in scan_interval to trigger it in order
+			 * to avoid a sched scan results storm.
+			 * In any case if it's not started kick start it.
+			 */
+			if (!sched_scan_res) {
+				if (wpa_supplicant_req_sched_scan(wpa_s))
+					wpa_supplicant_req_new_scan(wpa_s,
+							    timeout_sec,
+							    timeout_usec);
+			} else {
+				wpa_supplicant_cancel_sched_scan(wpa_s);
 				wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
 							    timeout_usec);
+			}
 		}
 	}
 	return 0;
