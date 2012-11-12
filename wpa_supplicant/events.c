@@ -1232,9 +1232,20 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
 				return 0;
 			}
 #endif /* CONFIG_P2P */
-			if ((data && data->scan_info.is_sched_scan_res) ||
-			    !wpa_s->sched_scanning)
+			/*
+			 * If sched scan results were received but we didn't
+			 * connect then there's an AP with a matching SSID
+			 * which may have mismatching security. Don't restart
+			 * another sched scan immediately and wait for the next
+			 * normal scan in scan_interval to trigger it in order
+			 * to avoid a sched scan results storm.
+			 * In any case if it's not started kick start it.
+			 */
+			if (!wpa_s->sched_scanning)
 				wpa_supplicant_req_sched_scan(wpa_s);
+			else if (data && data->scan_info.is_sched_scan_res)
+				wpa_supplicant_cancel_sched_scan(wpa_s);
+
 			wpa_supplicant_req_new_scan(wpa_s, timeout_sec,
 						    timeout_usec);
 		}
