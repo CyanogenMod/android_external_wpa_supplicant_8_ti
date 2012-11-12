@@ -2847,6 +2847,13 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 #ifdef CONFIG_P2P
 		wpas_p2p_update_channel_list(wpa_s);
 #endif /* CONFIG_P2P */
+
+		/* Restart the sched scan with updated channel list */
+		if (wpa_s->sched_scanning) {
+			wpa_dbg(wpa_s, MSG_DEBUG, "Channel list changed restart"
+				" sched scan.");
+			wpa_supplicant_req_sched_scan(wpa_s);
+		}
 		break;
 	case EVENT_INTERFACE_UNAVAILABLE:
 #ifdef CONFIG_P2P
