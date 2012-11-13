@@ -1726,4 +1726,9 @@ int p2p_prepare_channel(struct p2p_data *p2p, unsigned int force_freq);
 void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
 			    u8 client_timeout);
 
+/**
+ * p2p_group_get_interface_addr - Get the interface address of a P2P group
+ * @group: P2P group context from p2p_group_init()
+ */
+const u8 *p2p_group_get_interface_addr(struct p2p_group *group);
 #endif /* P2P_H */

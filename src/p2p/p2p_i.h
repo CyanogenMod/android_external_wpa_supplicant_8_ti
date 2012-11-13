@@ -557,7 +557,6 @@ struct p2p_noa_desc {
 };
 
 /* p2p_group.c */
-const u8 * p2p_group_get_interface_addr(struct p2p_group *group);
 u8 p2p_group_presence_req(struct p2p_group *group,
 			  const u8 *client_interface_addr,
 			  const u8 *noa, size_t noa_len);
