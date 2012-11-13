@@ -799,6 +799,9 @@ int wpa_supplicant_delayed_sched_scan(struct wpa_supplicant *wpa_s,
 	if (!wpa_s->sched_scan_supported)
 		return -1;
 
+	eloop_cancel_timeout(wpa_supplicant_delayed_sched_scan_timeout,
+			     wpa_s, NULL);
+
 	eloop_register_timeout(sec, usec,
 			       wpa_supplicant_delayed_sched_scan_timeout,
 			       wpa_s, NULL);
