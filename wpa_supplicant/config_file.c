@@ -852,6 +852,9 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		}
 		fprintf(f, "\n");
 	}
+
+	if (config->p2p_disabled)
+		fprintf(f, "p2p_disabled=%u\n", config->p2p_disabled);
 #endif /* CONFIG_P2P */
 	if (config->country[0] && config->country[1]) {
 		fprintf(f, "country=%c%c\n",
@@ -916,6 +919,9 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	if (config->p2p_conc_mode)
 		fprintf(f, "p2p_conc_mode=%u\n", config->p2p_conc_mode);
 #endif
+	if (config->concurrent_sched_scan)
+		fprintf(f, "concurrent_sched_scan=%u\n",
+			config->concurrent_sched_scan);
 }
 
 #endif /* CONFIG_NO_CONFIG_WRITE */

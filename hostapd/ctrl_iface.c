@@ -514,6 +514,42 @@ static int hostapd_ctrl_iface_ess_disassoc(struct hostapd_data *hapd,
 }
 
 
+static int hostapd_ctrl_iface_set_accept_mac(struct hostapd_data *hapd,
+					     char *fname)
+{
+	hapd->conf->num_accept_mac = 0;
+
+	if (hostapd_config_read_maclist(fname, &hapd->conf->accept_mac,
+					&hapd->conf->num_accept_mac)) {
+		wpa_printf(MSG_ERROR, "Reading mac list from file failed");
+		return -1;
+	}
+
+	/* Accept mac list changed, check if need to deauth stations*/
+	hostapd_macaddr_acl_accept_sta(hapd);
+
+	return 0;
+}
+
+
+static int hostapd_ctrl_iface_set_deny_mac(struct hostapd_data *hapd,
+					   char *fname)
+{
+	hapd->conf->num_deny_mac = 0;
+
+	if (hostapd_config_read_maclist(fname, &hapd->conf->deny_mac,
+					&hapd->conf->num_deny_mac)) {
+		wpa_printf(MSG_ERROR, "Reading mac list from file failed");
+		return -1;
+	}
+
+	/* Deny mac list changed, check if need to deauth stations*/
+	hostapd_macaddr_acl_deny_sta(hapd);
+
+	return 0;
+}
+
+
 static int hostapd_ctrl_iface_get_config(struct hostapd_data *hapd,
 					 char *buf, size_t buflen)
 {
@@ -723,6 +759,12 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
 		else
 			hapd->gas_frag_limit = val;
 #endif /* CONFIG_INTERWORKING */
+	} else if (os_strcasecmp(cmd, "macaddr_acl") == 0) {
+		ret = hostapd_macaddr_acl_command(hapd, value);
+	} else if (os_strcasecmp(cmd, "accept_mac_file") == 0) {
+		ret = hostapd_ctrl_iface_set_accept_mac(hapd, value);
+	} else if (os_strcasecmp(cmd, "deny_mac_file") == 0) {
+		ret = hostapd_ctrl_iface_set_deny_mac(hapd, value);
 	} else {
 		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
 	}

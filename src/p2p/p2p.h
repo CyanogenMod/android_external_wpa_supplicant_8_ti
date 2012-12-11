@@ -1690,16 +1690,6 @@ int p2p_set_pref_chan(struct p2p_data *p2p, unsigned int num_pref_chan,
  */
 int p2p_in_progress(struct p2p_data *p2p);
 
-/**
- * p2p_non_idle - Check whether P2P is not in P2P_IDLE. That
- * means we're in either search, GO neg or provisioing. Once connected
- * it's back to idle. p2p_in_progress excludes provisioing.
- * @p2p: P2P module context from p2p_init()
- * Returns: 0 if P2P module is idle or 1 if an operation is in progress
- */
-int p2p_non_idle(struct p2p_data *p2p);
-
-
 #ifdef ANDROID_P2P
 /**
  * p2p_search_in_progress - Check whether a P2P SEARCH is in progress
@@ -1736,4 +1726,9 @@ int p2p_prepare_channel(struct p2p_data *p2p, unsigned int force_freq);
 void p2p_set_config_timeout(struct p2p_data *p2p, u8 go_timeout,
 			    u8 client_timeout);
 
+/**
+ * p2p_group_get_interface_addr - Get the interface address of a P2P group
+ * @group: P2P group context from p2p_group_init()
+ */
+const u8 *p2p_group_get_interface_addr(struct p2p_group *group);
 #endif /* P2P_H */

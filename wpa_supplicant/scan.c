@@ -66,7 +66,8 @@ static int wpas_wps_in_use(struct wpa_supplicant *wpa_s,
 	}
 
 #ifdef CONFIG_P2P
-	if (wpas_p2p_non_idle(wpa_s)) {
+	if (!wpa_s->global->p2p_disabled && wpa_s->global->p2p &&
+	    !wpa_s->conf->p2p_disabled) {
 		wpa_s->wps->dev.p2p = 1;
 		if (!wps) {
 			wps = 1;
@@ -798,6 +799,9 @@ int wpa_supplicant_delayed_sched_scan(struct wpa_supplicant *wpa_s,
 	if (!wpa_s->sched_scan_supported)
 		return -1;
 
+	eloop_cancel_timeout(wpa_supplicant_delayed_sched_scan_timeout,
+			     wpa_s, NULL);
+
 	eloop_register_timeout(sec, usec,
 			       wpa_supplicant_delayed_sched_scan_timeout,
 			       wpa_s, NULL);
@@ -887,6 +891,7 @@ int wpa_supplicant_req_sched_scan(struct wpa_supplicant *wpa_s)
 		need_ssids++;
 
 	if (wpa_s->normal_scans < 3 &&
+	    wpa_s->max_scan_ssids > 1 &&
 	    (need_ssids <= wpa_s->max_scan_ssids ||
 	     wpa_s->max_scan_ssids >= (int) max_sched_scan_ssids)) {
 		/*
@@ -895,6 +900,10 @@ int wpa_supplicant_req_sched_scan(struct wpa_supplicant *wpa_s)
 		 * user space sleep more. We do this only if the normal scan
 		 * has functionality that is suitable for this or if the
 		 * sched_scan does not have better support for multiple SSIDs.
+		 * max_scan_ssids=1 is a special case where we'd like to avoid
+		 * using normal scan as wpa_supplicant_scan handles this case
+		 * differently and doesn't add a wildcard SSID so broadcast scan
+		 * results would be delayed.
 		 */
 		wpa_dbg(wpa_s, MSG_DEBUG, "Use normal scan instead of "
 			"sched_scan for initial scans (normal_scans=%d)",

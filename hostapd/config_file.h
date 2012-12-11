@@ -13,5 +13,7 @@ struct hostapd_config * hostapd_config_read(const char *fname);
 int hostapd_set_iface(struct hostapd_config *conf,
 		      struct hostapd_bss_config *bss, char *field,
 		      char *value);
+int hostapd_config_read_maclist(const char *fname,
+				struct mac_acl_entry **acl, int *num);
 
 #endif /* CONFIG_FILE_H */

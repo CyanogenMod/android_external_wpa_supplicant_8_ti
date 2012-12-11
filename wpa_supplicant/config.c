@@ -2968,6 +2968,7 @@ static const struct global_parse_data global_fields[] = {
 	{ INT_RANGE(p2p_intra_bss, 0, 1), CFG_CHANGED_P2P_INTRA_BSS },
 	{ INT(p2p_group_idle), 0 },
 	{ FUNC(p2p_pref_chan), CFG_CHANGED_P2P_PREF_CHAN },
+	{ INT(p2p_disabled), 0 },
 #endif /* CONFIG_P2P */
 #ifdef ANDROID_P2P
 	{ STR_RANGE(prioritize, 0, 32), CFG_CHANGED_IFACE_PRIORITY },
@@ -3000,6 +3001,7 @@ static const struct global_parse_data global_fields[] = {
 		    MAX_NUM_SCHED_SCAN_SHORT_INTERVALS), 0 },
 	{ INT_RANGE(sched_scan_short_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },
 	{ INT_RANGE(sched_scan_long_interval, 1, MAX_SCHED_SCAN_INTERVAL), 0 },
+	{ INT_RANGE(concurrent_sched_scan, 0, 1), 0 },
 };
 
 #undef FUNC
