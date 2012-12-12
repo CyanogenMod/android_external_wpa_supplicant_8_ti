@@ -1890,7 +1890,9 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
 		/* Timeout for receiving the first EAPOL packet */
 		wpa_supplicant_req_auth_timeout(wpa_s, 10, 0);
 	}
+
 	wpa_supplicant_cancel_scan(wpa_s);
+	wpa_supplicant_cancel_sched_scan(wpa_s);	
 
 	if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE) &&
 	    wpa_key_mgmt_wpa_psk(wpa_s->key_mgmt)) {
