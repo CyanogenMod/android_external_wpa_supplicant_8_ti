@@ -853,6 +853,10 @@ void wnm_bss_keep_alive_deinit(struct wpa_supplicant *wpa_s);
 int wpa_supplicant_fast_associate(struct wpa_supplicant *wpa_s);
 struct wpa_bss * wpa_supplicant_pick_network(struct wpa_supplicant *wpa_s,
 					     struct wpa_ssid **selected_ssid);
+#ifndef CONFIG_NO_SCAN_PROCESSING
+int wpas_select_network_from_last_scan(struct wpa_supplicant *wpa_s,
+				       int new_scan, int sched_scan_res);
+#endif
 
 /* eap_register.c */
 int eap_register_methods(void);
