@@ -10617,6 +10617,14 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 		return 0;
 	} else if(os_strncasecmp(cmd, "COUNTRY ", 8) == 0) {
 		return wpa_driver_nl80211_set_country(priv, cmd + 8);
+	/* useless commands in our case - do nothing */
+	} else if (os_strncasecmp(cmd, "SCAN-ACTIVE", 11) == 0 ||
+		   os_strncasecmp(cmd, "SCAN-PASSIVE", 12) == 0 ||
+		   os_strncasecmp(cmd, "BTCOEXMODE", 10) == 0 ||
+		   os_strncasecmp(cmd, "BTCOEXSCAN-START", 16) == 0 ||
+		   os_strncasecmp(cmd, "BTCOEXSCAN-STOP", 15) == 0 ||
+		   os_strncasecmp(cmd, "SETSUSPENDMODE", 14) == 0) {
+		return 0;
 	} else {
 		wpa_printf(MSG_ERROR, "Unsupported command: %s", cmd);
 		ret = -1;
