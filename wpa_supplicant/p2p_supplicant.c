@@ -3757,9 +3757,10 @@ static void wpas_p2p_scan_res_join(struct wpa_supplicant *wpa_s,
 			break;
 		}
 
-		if ((p2p_get_provisioning_info(wpa_s->global->p2p,
-					       wpa_s->pending_join_dev_addr) ==
-		     method)) {
+		if (p2p_get_provisioning_info(wpa_s->global->p2p,
+				wpa_s->pending_join_dev_addr) == method ||
+		    p2p_get_provisioning_info(wpa_s->global->p2p,
+				wpa_s->pending_join_iface_addr) == method) {
 			/*
 			 * We have already performed provision discovery for
 			 * joining the group. Proceed directly to join
