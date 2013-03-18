@@ -24,6 +24,7 @@
 #include <linux/filter.h>
 #include <linux/errqueue.h>
 #include "nl80211_copy.h"
+#include "testmode_copy.h"
 
 #include "common.h"
 #include "eloop.h"
