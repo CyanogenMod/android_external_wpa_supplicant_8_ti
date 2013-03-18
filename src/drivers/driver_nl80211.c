@@ -8308,6 +8308,56 @@ static int wpa_driver_nl80211_set_supp_port(void *priv, int authorized)
 	return -ENOBUFS;
 }
 
+static int wpa_driver_nl80211_testmode_cmd(struct wpa_driver_nl80211_data *drv,
+					   struct nl_msg *nested)
+{
+	struct nl_msg *msg;
+	int ret;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -ENOMEM;
+
+	nl80211_cmd(drv, msg, 0, NL80211_CMD_TESTMODE);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, drv->ifindex);
+
+	/* note: we only "put" nested, not consume it */
+	ret = nla_put_nested(msg, NL80211_ATTR_TESTDATA, nested);
+	if (ret < 0)
+		goto nla_put_failure;
+
+	ret = send_and_recv_msgs(drv, msg, NULL, NULL);
+	if (ret == -ENOENT)
+		return 0;
+	return ret;
+ nla_put_failure:
+	nlmsg_free(msg);
+	return -ENOBUFS;
+}
+
+static int wpa_driver_nl80211_testmode_empty_cmd(
+					struct wpa_driver_nl80211_data *drv,
+					int cmd)
+{
+	struct nl_msg *msg;
+	int ret;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -ENOMEM;
+
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_CMD_ID, cmd);
+
+	ret = wpa_driver_nl80211_testmode_cmd(drv, msg);
+
+	/* we still need to free our nested message */
+	nlmsg_free(msg);
+	return ret;
+nla_put_failure:
+	nlmsg_free(msg);
+	return -ENOBUFS;
+}
 
 /* Set kernel driver on given frequency (MHz) */
 static int i802_set_freq(void *priv, struct hostapd_freq_params *freq)
@@ -11147,6 +11197,49 @@ static int wpa_driver_nl80211_driver_cmd_android(void *priv, char *cmd, char *bu
 
 #endif /* ANDROID */
 
+static int nl80211_testmode_cmd_smart_config_start(
+				struct wpa_driver_nl80211_data *drv,
+				u16 group_bitmap)
+{
+	struct nl_msg *msg;
+	int ret;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -ENOMEM;
+
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_CMD_ID,
+		    WL1271_TM_CMD_SMART_CONFIG_START);
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_GROUP_ID, group_bitmap);
+
+	ret = wpa_driver_nl80211_testmode_cmd(drv, msg);
+
+	/* we still need to free our nested message */
+	nlmsg_free(msg);
+	return ret;
+nla_put_failure:
+	nlmsg_free(msg);
+	return -ENOBUFS;
+}
+
+static int
+nl80211_smart_config_start(struct wpa_driver_nl80211_data *drv,
+			   const char *buf)
+{
+	char *endp;
+	unsigned long group_id;
+
+	/* buf = <group_id> */
+	group_id = strtoul(buf, &endp, 0);
+	if (buf == endp || *endp != '\0')
+		return -1;
+
+	wpa_printf(MSG_DEBUG, "group_id: %ld", group_id);
+	wpa_printf(MSG_DEBUG, "Send testmode SMART_CONFIG_START cmd");
+
+	return nl80211_testmode_cmd_smart_config_start(drv, group_id);
+}
+
 static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 					 size_t buf_len)
 {
@@ -11154,9 +11247,18 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 	struct wpa_driver_nl80211_data *drv = bss->drv;
 	int ret = -1;
 
+	if (os_strcasecmp(cmd, "SMART_CONFIG_START") == 0) {
+		wpa_printf(MSG_DEBUG, "Send testmode SMART_CONFIG_START cmd");
+		ret = nl80211_smart_config_start(drv, buf);
+	} else if (os_strcasecmp(cmd, "SMART_CONFIG_STOP") == 0) {
+		wpa_printf(MSG_DEBUG, "Send testmode SMART_CONFIG_STOP cmd");
+		ret = wpa_driver_nl80211_testmode_empty_cmd(drv,
+				WL1271_TM_CMD_SMART_CONFIG_STOP);
+	} else {
 #ifdef ANDROID
 	ret = wpa_driver_nl80211_driver_cmd_android(priv, cmd, buf, buf_len);
 #endif
+	}
 	return ret;
 }
 
