@@ -2677,6 +2677,54 @@ static void wpas_event_deauth(struct wpa_supplicant *wpa_s,
 }
 
 
+static struct wpa_ssid *
+wpa_sc_add_network(struct wpa_supplicant *wpa_s,
+		   u8 *_ssid, u8 ssid_len,
+		   u8 *psk, u8 psk_len)
+{
+	struct wpa_ssid *ssid;
+	char buf[64];
+
+	ssid = wpa_config_add_network(wpa_s->conf);
+	if (ssid == NULL)
+		return NULL;
+
+	wpas_notify_network_added(wpa_s, ssid);
+	wpa_config_set_network_defaults(ssid);
+	ssid->disabled = 1;
+
+	os_memset(buf, 0, sizeof(buf));
+	os_memcpy(buf, _ssid, ssid_len);
+	if (wpa_config_set_quoted(ssid, "ssid", buf) < 0)
+		goto fail;
+
+	if (!psk_len) {
+		wpa_config_set(ssid, "key_mgmt", "NONE", 0);
+	} else {
+		os_memset(buf, 0, sizeof(buf));
+		os_memcpy(buf, psk, psk_len);
+
+		if (wpa_config_set(ssid, "key_mgmt", "WPA-PSK", 0) < 0 ||
+		    wpa_config_set_quoted(ssid, "psk", buf) < 0)
+			goto fail;
+
+		wpa_config_update_psk(ssid);
+	}
+
+	/* support hidden ssids as well */
+	ssid->scan_ssid = 1;
+
+	ssid->disabled = 0;
+
+	return ssid;
+fail:
+	wpa_printf(MSG_ERROR, "%s: error adding new nework", __func__);
+	wpas_notify_network_removed(wpa_s, ssid);
+	wpa_config_remove_network(wpa_s->conf, ssid->id);
+	return NULL;
+}
+
+
 void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 			  union wpa_event_data *data)
 {
@@ -3313,7 +3361,8 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 						  wpa_s->max_remain_on_chan);
 		break;
 	}
-	case EVENT_SMART_CONFIG_DECODE:
+	case EVENT_SMART_CONFIG_DECODE: {
+		struct smart_config_decode *sc_data = &data->smart_config_decode;
 		wpa_dbg(wpa_s, MSG_DEBUG, "event smart config decode");
 
 		if (!wpa_s->smart_config_freq) {
@@ -3326,8 +3375,19 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		/* smart config completed. stop it */
 		wpa_supplicant_smart_config_stop(wpa_s);
 
-		break;
+		/* add the new found network */
+		wpa_sc_add_network(wpa_s,
+				   sc_data->ssid, sc_data->ssid_len,
+				   sc_data->psk, sc_data->psk_len);
 
+		if (wpa_s->conf->update_config)
+			wpa_config_write(wpa_s->confname, wpa_s->conf);
+
+		/* trigger a scan to find the new configured network */
+		wpa_supplicant_req_scan(wpa_s, 0, 0);
+
+		break;
+	}
 	default:
 		wpa_msg(wpa_s, MSG_INFO, "Unknown event %d", event);
 		break;
