@@ -11086,7 +11086,7 @@ static int android_pno_stop(struct i802_bss *bss)
 }
 
 
-static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
+static int wpa_driver_nl80211_driver_cmd_android(void *priv, char *cmd, char *buf,
 					 size_t buf_len)
 {
 	struct i802_bss *bss = priv;
@@ -11146,6 +11146,19 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 }
 
 #endif /* ANDROID */
+
+static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
+					 size_t buf_len)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	int ret = -1;
+
+#ifdef ANDROID
+	ret = wpa_driver_nl80211_driver_cmd_android(priv, cmd, buf, buf_len);
+#endif
+	return ret;
+}
 
 
 static int driver_nl80211_set_key(const char *ifname, void *priv,
@@ -11385,7 +11398,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.get_noa = wpa_driver_get_p2p_noa,
 	.set_ap_wps_ie = wpa_driver_set_ap_wps_p2p_ie,
 #endif /* ANDROID_P2P */
-#ifdef ANDROID
 	.driver_cmd = wpa_driver_nl80211_driver_cmd,
-#endif /* ANDROID */
 };

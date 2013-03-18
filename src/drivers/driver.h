@@ -2627,7 +2627,6 @@ struct wpa_driver_ops {
 	 */
 	int (*set_authmode)(void *priv, int authmode);
 
-#ifdef ANDROID
 	/**
 	 * driver_cmd - Execute driver-specific command
 	 * @priv: Private driver interface data
@@ -2637,7 +2636,6 @@ struct wpa_driver_ops {
 	 * Returns: 0 on success, -1 on failure
 	 */
 	int (*driver_cmd)(void *priv, char *cmd, char *buf, size_t buf_len);
-#endif /* ANDROID */
 
 	/**
 	 * set_rekey_info - Set rekey information
