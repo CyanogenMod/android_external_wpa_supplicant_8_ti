@@ -5773,6 +5773,12 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 	} else if (os_strcmp(buf, "INTERFACE_LIST") == 0) {
 		reply_len = wpa_supplicant_global_iface_list(
 			wpa_s->global, reply, reply_size);
+	} else if (os_strncmp(buf, "SMART_CONFIG_START ", 19) == 0) {
+		if (wpa_supplicant_smart_config_start(wpa_s, buf + 19))
+			reply_len = -1;
+	} else if (os_strcmp(buf, "SMART_CONFIG_STOP") == 0) {
+		if (wpa_supplicant_smart_config_stop(wpa_s))
+			reply_len = -1;
 	} else if (os_strcmp(buf, "INTERFACES") == 0) {
 		reply_len = wpa_supplicant_global_iface_interfaces(
 			wpa_s->global, reply, reply_size);

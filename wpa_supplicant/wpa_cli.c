@@ -1636,6 +1636,17 @@ static int wpa_cli_cmd_interface_list(struct wpa_ctrl *ctrl, int argc,
 	return wpa_ctrl_command(ctrl, "INTERFACE_LIST");
 }
 
+static int wpa_cli_cmd_smart_config_start(struct wpa_ctrl *ctrl, int argc,
+					  char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "SMART_CONFIG_START", 1, argc, argv);
+}
+
+static int wpa_cli_cmd_smart_config_stop(struct wpa_ctrl *ctrl, int argc,
+					 char *argv[])
+{
+	return wpa_ctrl_command(ctrl, "SMART_CONFIG_STOP");
+}
 
 #ifdef CONFIG_AP
 static int wpa_cli_cmd_sta(struct wpa_ctrl *ctrl, int argc, char *argv[])
@@ -2789,6 +2800,12 @@ static struct wpa_cli_cmd wpa_cli_commands[] = {
 	  wpa_cli_complete_p2p_peer, cli_cmd_flag_none,
 	  "<address|iface=address> = remove a peer from all groups" },
 #endif /* CONFIG_P2P */
+	{ "smart_config_start", wpa_cli_cmd_smart_config_start, NULL,
+	  cli_cmd_flag_none,
+	  "<group bitmap> = start smart config" },
+	{ "smart_config_stop", wpa_cli_cmd_smart_config_stop, NULL,
+	  cli_cmd_flag_none,
+	  "= stop smart config" },
 #ifdef CONFIG_WIFI_DISPLAY
 	{ "wfd_subelem_set", wpa_cli_cmd_wfd_subelem_set, NULL,
 	  cli_cmd_flag_none,
