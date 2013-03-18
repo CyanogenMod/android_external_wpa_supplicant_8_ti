@@ -3040,6 +3040,14 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 #endif /* CONFIG_P2P */
 		break;
 	case EVENT_CANCEL_REMAIN_ON_CHANNEL:
+		if (wpa_s->smart_config_freq) {
+			/* do it forever... */
+			wpa_printf(MSG_DEBUG, "ROC again... (forever)");
+			wpa_drv_remain_on_channel(wpa_s,
+						  wpa_s->smart_config_freq,
+						  wpa_s->max_remain_on_chan);
+			break;
+		}
 #ifdef CONFIG_OFFCHANNEL
 		offchannel_cancel_remain_on_channel_cb(
 			wpa_s, data->remain_on_channel.freq);
@@ -3233,6 +3241,10 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED)
 			break;
 
+		if (wpa_s->smart_config_freq)
+			wpa_drv_remain_on_channel(wpa_s,
+						  wpa_s->smart_config_freq,
+						  wpa_s->max_remain_on_chan);
 		if (wpa_s->override_sched_scan) {
 			if (wpa_supplicant_req_sched_scan(wpa_s))
 				wpa_supplicant_req_new_scan(wpa_s,
@@ -3265,6 +3277,55 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 			data->connect_failed_reason.code);
 #endif /* CONFIG_AP */
 		break;
+	case EVENT_SMART_CONFIG_SYNC: {
+		u32 freq = data->smart_config_sync.freq;
+		wpa_dbg(wpa_s, MSG_DEBUG, "event smart config sync, freq = %d",
+			freq);
+
+		if (!wpa_s->smart_config_in_sync) {
+			wpa_dbg(wpa_s, MSG_DEBUG,
+				"ignore EVENT_SMART_CONFIG_SYNC event while "
+				"not in sync stage.");
+			break;
+		}
+
+		/* don't start any new scan */
+		wpa_s->smart_config_in_sync = 0;
+
+		/* stop any ongoing scan */
+		wpa_supplicant_cancel_sched_scan(wpa_s);
+		wpa_supplicant_cancel_scan(wpa_s);
+
+		/* save the sync channel */
+		wpa_s->smart_config_freq = freq;
+
+		/*
+		 * roc on it now only if sched_scan is not running. otherwise,
+		 * it will be initiated on sched_scan stop event.
+		 */
+		if (!wpa_s->sched_scanning)
+			wpa_drv_remain_on_channel(wpa_s, freq,
+						  wpa_s->max_remain_on_chan);
+		break;
+	}
+	case EVENT_SMART_CONFIG_DECODE:
+		wpa_dbg(wpa_s, MSG_DEBUG, "event smart config decode");
+
+		if (!wpa_s->smart_config_freq) {
+			wpa_dbg(wpa_s, MSG_ERROR,
+				"ignore SMART_CONFIG_DECODE event while "
+				"not in decoding stage.");
+			break;
+		}
+
+		/* stop ROC */
+		wpa_s->smart_config_freq = 0;
+		wpa_drv_cancel_remain_on_channel(wpa_s);
+
+		/* stop smart config */
+		wpa_drv_driver_cmd(wpa_s, "STOP_SMART_CONFIG", NULL, 0);
+		break;
+
 	default:
 		wpa_msg(wpa_s, MSG_INFO, "Unknown event %d", event);
 		break;

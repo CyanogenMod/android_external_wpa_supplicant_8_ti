@@ -86,6 +86,8 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(DFS_NOP_FINISHED);
 	E2S(SURVEY);
 	E2S(START_ROAMING);
+	E2S(SMART_CONFIG_SYNC);
+	E2S(SMART_CONFIG_DECODE);
 	}
 
 	return "UNKNOWN";

@@ -474,6 +474,11 @@ struct wpa_supplicant {
 		MANUAL_SCAN_REQ
 	} scan_req;
 	struct os_time scan_trigger_time;
+
+	/* smart config params */
+	int smart_config_in_sync; /* SC trying to sync on channel */
+	int smart_config_freq; /* SC frequency to try decode on */
+
 	int scan_runs; /* number of scan runs since WPS was started */
 	int *next_scan_freqs;
 	int scan_interval; /* time in sec between scans to find suitable AP */
