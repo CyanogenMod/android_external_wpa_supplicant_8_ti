@@ -3583,6 +3583,16 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
 		/* Continue without regulatory events */
 	}
 
+	ret = nl_get_multicast_id(global, "nl80211", "testmode");
+	if (ret >= 0)
+		ret = nl_socket_add_membership(global->nl_event, ret);
+	if (ret < 0) {
+		wpa_printf(MSG_DEBUG, "nl80211: Could not add multicast "
+			   "membership for testmode events: %d (%s)",
+			   ret, strerror(-ret));
+		goto err;
+	}
+
 	nl_cb_set(global->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
 		  no_seq_check, NULL);
 	nl_cb_set(global->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
