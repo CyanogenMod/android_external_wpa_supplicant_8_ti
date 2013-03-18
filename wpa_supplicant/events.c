@@ -3241,6 +3241,11 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 		if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED)
 			break;
 
+		if (wpa_s->smart_config_in_sync) {
+			wpa_s->scan_req = MANUAL_SCAN_REQ;
+			wpa_supplicant_req_sched_scan(wpa_s);
+		}
+
 		if (wpa_s->smart_config_freq)
 			wpa_drv_remain_on_channel(wpa_s,
 						  wpa_s->smart_config_freq,
@@ -3318,12 +3323,9 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 			break;
 		}
 
-		/* stop ROC */
-		wpa_s->smart_config_freq = 0;
-		wpa_drv_cancel_remain_on_channel(wpa_s);
+		/* smart config completed. stop it */
+		wpa_supplicant_smart_config_stop(wpa_s);
 
-		/* stop smart config */
-		wpa_drv_driver_cmd(wpa_s, "STOP_SMART_CONFIG", NULL, 0);
 		break;
 
 	default:

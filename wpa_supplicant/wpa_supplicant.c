@@ -2078,6 +2078,60 @@ int wpa_supplicant_set_debug_params(struct wpa_global *global, int debug_level,
 	return 0;
 }
 
+int wpa_supplicant_smart_config_start(struct wpa_supplicant *wpa_s,
+				      const char *buf)
+{
+	int ret;
+
+	if (wpa_s->smart_config_in_sync || wpa_s->smart_config_freq)
+		return -1;
+
+	/* temporarily disable networks and cancel any ongoing scan */
+	wpa_supplicant_disable_network(wpa_s, NULL);
+
+	/* cancel any ongoing scan */
+	wpa_supplicant_cancel_sched_scan(wpa_s);
+	wpa_supplicant_cancel_scan(wpa_s);
+
+	ret = wpa_drv_driver_cmd(wpa_s, "SMART_CONFIG_START",
+				 (char *)buf, os_strlen(buf));
+	if (ret)
+		return -1;
+
+	wpa_s->smart_config_in_sync = 1;
+	if (!wpa_s->sched_scanning) {
+		/* start scanning */
+		wpa_s->scan_req = MANUAL_SCAN_REQ;
+		wpa_supplicant_req_sched_scan(wpa_s);
+	}
+
+	return 0;
+}
+
+int wpa_supplicant_smart_config_stop(struct wpa_supplicant *wpa_s)
+{
+	if (!wpa_s->smart_config_in_sync && !wpa_s->smart_config_freq)
+		return -1;
+
+	if (wpa_s->smart_config_in_sync) {
+		wpa_s->smart_config_in_sync = 0;
+		wpa_supplicant_cancel_sched_scan(wpa_s);
+		wpa_supplicant_cancel_scan(wpa_s);
+	}
+
+	if (wpa_s->smart_config_freq) {
+		/* stop ROC */
+		wpa_s->smart_config_freq = 0;
+		wpa_drv_cancel_remain_on_channel(wpa_s);
+	}
+
+	/* stop smart config */
+	wpa_drv_driver_cmd(wpa_s, "SMART_CONFIG_STOP", NULL, 0);
+
+	/* enable networks we disabled previously */
+	wpa_supplicant_enable_network(wpa_s, NULL);
+	return 0;
+}
 
 /**
  * wpa_supplicant_get_ssid - Get a pointer to the current network structure
