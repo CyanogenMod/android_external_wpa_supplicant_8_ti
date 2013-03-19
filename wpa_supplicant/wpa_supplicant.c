@@ -2400,6 +2400,10 @@ static void wpa_supplicant_rx_eapol_bridge(void *ctx, const u8 *src_addr,
 int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
 {
 	static int interface_count = 0;
+	int max_sched_scan_ssids = wpa_s->max_sched_scan_ssids <
+				   WPAS_MAX_SCAN_SSIDS ?
+				   wpa_s->max_sched_scan_ssids :
+				   WPAS_MAX_SCAN_SSIDS;
 
 	if (wpa_supplicant_update_mac_addr(wpa_s) < 0)
 		return -1;
@@ -2438,9 +2442,10 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
 
 	if (wpa_supplicant_enabled_networks(wpa_s)) {
 		if (wpa_supplicant_delayed_sched_scan(wpa_s, interface_count,
-						      100000))
+						      100000) ||
+		    wpa_ssid_scanned(wpa_s) > max_sched_scan_ssids)
 			wpa_supplicant_req_scan(wpa_s, interface_count,
-						100000);
+						200000);
 		interface_count++;
 	} else
 		wpa_supplicant_set_state(wpa_s, WPA_INACTIVE);
@@ -4034,4 +4039,23 @@ int get_shared_radio_freqs(struct wpa_supplicant *wpa_s,
 			freq_array[idx++] = freq;
 	}
 	return idx;
+}
+
+
+/**
+ * wpa_ssid_scanned - Return number of networks that should be ssid scanned
+ * @wpa_s: Pointer to the network interface
+ *
+ */
+int wpa_ssid_scanned(struct wpa_supplicant *wpa_s)
+{
+	struct wpa_ssid *ssid = NULL;
+	int cnt = 0;
+
+	for (ssid = wpa_s->conf->ssid; ssid; ssid = ssid->next)
+		if (!wpas_network_disabled(wpa_s, ssid) && ssid->scan_ssid)
+			cnt++;
+
+	wpa_dbg(wpa_s, MSG_DEBUG, "Total active hidden networks %d", cnt);
+	return cnt;
 }

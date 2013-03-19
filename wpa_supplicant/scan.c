@@ -901,7 +901,6 @@ void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec)
 			return;
 		}
 	}
-
 	wpa_dbg(wpa_s, MSG_DEBUG, "Setting scan request: %d sec %d usec",
 		sec, usec);
 	eloop_cancel_timeout(wpa_supplicant_scan, wpa_s, NULL);

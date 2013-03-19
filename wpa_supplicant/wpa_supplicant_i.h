@@ -826,6 +826,7 @@ int disallowed_ssid(struct wpa_supplicant *wpa_s, const u8 *ssid,
 void wpas_request_connection(struct wpa_supplicant *wpa_s);
 int wpas_build_ext_capab(struct wpa_supplicant *wpa_s, u8 *buf);
 int wpas_wpa_is_in_progress(struct wpa_supplicant *wpa_s);
+int wpa_ssid_scanned(struct wpa_supplicant *wpa_s);
 
 /**
  * wpa_supplicant_ctrl_iface_ctrl_rsp_handle - Handle a control response
