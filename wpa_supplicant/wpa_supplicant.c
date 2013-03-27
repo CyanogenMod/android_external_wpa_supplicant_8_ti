@@ -2133,6 +2133,18 @@ int wpa_supplicant_smart_config_stop(struct wpa_supplicant *wpa_s)
 	return 0;
 }
 
+int wpa_supplicant_smart_config_set_group_id(struct wpa_supplicant *wpa_s,
+					     const char *buf)
+{
+	int ret;
+
+	wpa_msg(wpa_s, MSG_DEBUG, "smart config set group key");
+
+	ret = wpa_drv_driver_cmd(wpa_s, "SMART_CONFIG_SET_GROUP_KEY",
+				 (char *)buf, os_strlen(buf));
+	return ret;
+}
+
 /**
  * wpa_supplicant_get_ssid - Get a pointer to the current network structure
  * @wpa_s: Pointer to wpa_supplicant data
