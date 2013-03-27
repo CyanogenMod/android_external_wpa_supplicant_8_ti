@@ -11327,6 +11327,59 @@ nl80211_smart_config_start(struct wpa_driver_nl80211_data *drv,
 	return nl80211_testmode_cmd_smart_config_start(drv, group_id);
 }
 
+static int nl80211_testmode_cmd_set_group_key(
+				struct wpa_driver_nl80211_data *drv,
+				u16 group_id,
+				int key_len, const char *key)
+{
+	struct nl_msg *msg;
+	int ret;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -ENOMEM;
+
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_CMD_ID,
+		    WL1271_TM_CMD_SMART_CONFIG_SET_GROUP_KEY);
+
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_GROUP_ID, group_id);
+	NLA_PUT(msg, WL1271_TM_ATTR_GROUP_KEY, key_len, key);
+
+	ret = wpa_driver_nl80211_testmode_cmd(drv, msg);
+
+	/* we still need to free our nested message */
+	nlmsg_free(msg);
+	return ret;
+nla_put_failure:
+	nlmsg_free(msg);
+	return -ENOBUFS;
+}
+
+static int
+nl80211_smart_config_set_group_key(struct wpa_driver_nl80211_data *drv,
+				   const char *buf)
+{
+	char *endp;
+	long group_id;
+
+	/* buf = <group_id> <key> */
+	group_id = strtol(buf, &endp, 10);
+
+	if (buf == endp || *endp != ' ' || group_id < 0)
+		return -1;
+
+	/* skip spaces */
+	while (*endp == ' ')
+		endp++;
+
+	wpa_printf(MSG_DEBUG, "group_id: %ld, key_len: %d, key: %s",
+		   group_id, (int)strlen(endp), endp);
+	wpa_printf(MSG_DEBUG, "Send testmode SMART_CONFIG_SET_GROUP_KEY cmd");
+
+	return nl80211_testmode_cmd_set_group_key(drv, group_id,
+						  os_strlen(endp), endp);
+}
+
 static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 					 size_t buf_len)
 {
@@ -11341,6 +11394,8 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 		wpa_printf(MSG_DEBUG, "Send testmode SMART_CONFIG_STOP cmd");
 		ret = wpa_driver_nl80211_testmode_empty_cmd(drv,
 				WL1271_TM_CMD_SMART_CONFIG_STOP);
+	} else if (os_strcasecmp(cmd, "SMART_CONFIG_SET_GROUP_KEY") == 0) {
+		ret = nl80211_smart_config_set_group_key(drv, buf);
 	} else {
 #ifdef ANDROID
 	ret = wpa_driver_nl80211_driver_cmd_android(priv, cmd, buf, buf_len);
