@@ -498,6 +498,75 @@ static void wpa_setband_scan_freqs_list(struct wpa_supplicant *wpa_s,
 }
 
 
+static void wpa_smart_config_setband_freqs_list(struct wpa_supplicant *wpa_s,
+					enum hostapd_hw_mode band,
+					struct wpa_driver_scan_params *params,
+					int *count)
+{
+	/* Include only supported channels for the specified band */
+	struct hostapd_hw_modes *mode;
+	int i;
+
+	mode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes, band);
+	if (mode == NULL)
+		return;
+
+	/* write channel 1/6/11 first */
+	if (band == HOSTAPD_MODE_IEEE80211G) {
+		for (i = 0; i < mode->num_channels; i++) {
+			struct hostapd_channel_data *chan = &mode->channels[i];
+
+			if (chan->flag & HOSTAPD_CHAN_DISABLED)
+				continue;
+
+			if (chan->chan != 1 && chan->chan != 6 &&
+			    chan->chan != 11)
+				continue;
+
+			params->freqs[(*count)++] = chan->freq;
+		}
+	}
+
+	for (i = 0; i < mode->num_channels; i++) {
+		struct hostapd_channel_data *chan = &mode->channels[i];
+
+		if (chan->flag & HOSTAPD_CHAN_DISABLED)
+			continue;
+		if (band == HOSTAPD_MODE_IEEE80211G &&
+		    (chan->chan == 1 || chan->chan == 6 || chan->chan == 11))
+			continue;
+		params->freqs[(*count)++] = chan->freq;
+	}
+	return;
+}
+
+static void wpa_smart_config_scan_freqs_list(struct wpa_supplicant *wpa_s,
+					struct wpa_driver_scan_params *params)
+{
+	int num_channels = 0;
+	int count = 0;
+	struct hostapd_hw_modes *mode;
+
+	wpa_dbg(wpa_s, MSG_DEBUG, "Creating freqs list for smart config sched scan");
+	mode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes,
+			HOSTAPD_MODE_IEEE80211G);
+	if (mode)
+		num_channels += mode->num_channels;
+
+	mode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes,
+			HOSTAPD_MODE_IEEE80211A);
+	if (mode)
+		num_channels += mode->num_channels;
+
+	params->freqs = os_zalloc((num_channels + 1) * sizeof(int));
+	if (params->freqs == NULL)
+		return;
+
+	wpa_smart_config_setband_freqs_list(wpa_s, HOSTAPD_MODE_IEEE80211G,
+					    params, &count);
+	wpa_smart_config_setband_freqs_list(wpa_s, HOSTAPD_MODE_IEEE80211A,
+					    params, &count);
+}
 static void wpa_setband_scan_freqs(struct wpa_supplicant *wpa_s,
 				   struct wpa_driver_scan_params *params)
 {
@@ -505,6 +574,10 @@ static void wpa_setband_scan_freqs(struct wpa_supplicant *wpa_s,
 		return; /* unknown what channels the driver supports */
 	if (params->freqs)
 		return; /* already using a limited channel set */
+	if (wpa_s->smart_config_in_sync) {
+		wpa_smart_config_scan_freqs_list(wpa_s, params);
+		return;
+	}
 	if (wpa_s->setband == WPA_SETBAND_5G)
 		wpa_setband_scan_freqs_list(wpa_s, HOSTAPD_MODE_IEEE80211A,
 					    params);
