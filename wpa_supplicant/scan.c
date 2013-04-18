@@ -987,7 +987,8 @@ int wpa_supplicant_req_sched_scan(struct wpa_supplicant *wpa_s)
 	wpa_s->override_sched_scan = 0;
 	wpa_supplicant_clear_sched_scanned(wpa_s);
 
-	if (!wpa_supplicant_enabled_networks(wpa_s)) {
+	if (!wpa_supplicant_enabled_networks(wpa_s) &&
+	    !wpa_s->smart_config_in_sync) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "No enabled networks -"
 			"do not sched scan");
 		return 0;
