@@ -2502,6 +2502,79 @@ static void nl80211_tdls_oper_event(struct wpa_driver_nl80211_data *drv,
 	wpa_supplicant_event(drv->ctx, EVENT_TDLS, &data);
 }
 
+static void
+nl80211_testmode_sc_sync_event(struct wpa_driver_nl80211_data *drv,
+			       struct nlattr **testmode)
+{
+	union wpa_event_data data;
+	u32 freq;
+
+	wpa_printf(MSG_DEBUG, "nl80211: testmode sc sync event");
+
+	if (!testmode[WL1271_TM_ATTR_FREQ])
+		return;
+
+	freq = nla_get_u32(testmode[WL1271_TM_ATTR_FREQ]);
+	wpa_printf(MSG_DEBUG, "found freq=%d", freq);
+
+	os_memset(&data, 0, sizeof(data));
+	data.smart_config_sync.freq = freq;
+	wpa_supplicant_event(drv->ctx, EVENT_SMART_CONFIG_SYNC, &data);
+}
+
+static void
+nl80211_testmode_sc_decode_event(struct wpa_driver_nl80211_data *drv,
+				 struct nlattr **testmode)
+{
+	union wpa_event_data data = {};
+	struct smart_config_decode *sc_data = &data.smart_config_decode;
+	wpa_printf(MSG_DEBUG, "nl80211: testmode sc decode event");
+
+	if (!testmode[WL1271_TM_ATTR_SSID])
+		return;
+
+	sc_data->ssid = nla_data(testmode[WL1271_TM_ATTR_SSID]);
+	sc_data->ssid_len = nla_len(testmode[WL1271_TM_ATTR_SSID]);
+
+	if (testmode[WL1271_TM_ATTR_PSK]) {
+		sc_data->psk = nla_data(testmode[WL1271_TM_ATTR_PSK]);
+		sc_data->psk_len = nla_len(testmode[WL1271_TM_ATTR_PSK]);
+	}
+
+	wpa_supplicant_event(drv->ctx, EVENT_SMART_CONFIG_DECODE, &data);
+}
+
+static void nl80211_testmode_event(struct wpa_driver_nl80211_data *drv,
+				       struct nlattr **tb)
+{
+	struct nlattr *testmode[WL1271_TM_ATTR_MAX];
+	u8 testmode_event;
+
+	wpa_printf(MSG_DEBUG, "nl80211: testmode event");
+
+	if (!tb[NL80211_ATTR_TESTDATA])
+		return;
+
+	if (nla_parse_nested(testmode, WL1271_TM_ATTR_MAX, tb[NL80211_ATTR_TESTDATA],
+			     NULL))
+		return;
+
+	if (!testmode[WL1271_TM_ATTR_SMART_CONFIG_EVENT])
+		return;
+
+	testmode_event = nla_get_u8(testmode[WL1271_TM_ATTR_SMART_CONFIG_EVENT]);
+	switch (testmode_event) {
+	case WLCORE_TM_SC_EVENT_SYNC:
+		nl80211_testmode_sc_sync_event(drv, testmode);
+		break;
+	case WLCORE_TM_SC_EVENT_DECODE:
+		nl80211_testmode_sc_decode_event(drv, testmode);
+		break;
+	default:
+		wpa_printf(MSG_DEBUG, "ERROR - invalid testmode smart config event");
+	}
+}
+
 
 static void nl80211_stop_ap(struct wpa_driver_nl80211_data *drv,
 			    struct nlattr **tb)
@@ -2736,6 +2809,10 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
 		break;
 	case NL80211_CMD_STOP_AP:
 		nl80211_stop_ap(drv, tb);
+		break;
+	case NL80211_CMD_TESTMODE:
+		wpa_printf(MSG_DEBUG, "TESTMODE event!");
+		nl80211_testmode_event(drv, tb);
 		break;
 	default:
 		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Ignored unknown event "
