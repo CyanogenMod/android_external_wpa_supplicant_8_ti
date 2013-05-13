@@ -5342,6 +5342,17 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 		return NULL;
 	}
 
+	/* allow only specific commands while in smart_config mode */
+	if ((wpa_s->smart_config_in_sync || wpa_s->smart_config_freq) &&
+	    (os_strncmp(buf, "SMART_CONFIG_", 13) &&
+	     os_strcmp(buf, "PING") &&
+	     os_strncmp(buf, "STATUS", 6))) {
+		wpa_printf(MSG_ERROR, "Commands are blocked while in smart_config mode");
+		os_memcpy(reply, "BUSY\n", 5);
+		reply_len = 5;
+		goto out;
+	}
+
 	os_memcpy(reply, "OK\n", 3);
 	reply_len = 3;
 
@@ -5870,7 +5881,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
 		reply_len = 16;
 	}
-
+out:
 	if (reply_len < 0) {
 		os_memcpy(reply, "FAIL\n", 5);
 		reply_len = 5;
