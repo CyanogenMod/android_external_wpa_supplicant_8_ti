@@ -5231,6 +5231,10 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 				country[2] = 0x04;
 				p2p_set_country(p2p, country);
 			}
+		} else if (os_strncasecmp(cmd, "SETMIRACAST ", 12) == 0) {
+			wpa_printf(MSG_DEBUG, "SETMIRACAST is not implemented in the "
+				   "driver, so do not send the command to the driver");
+			ret = 0;
 		} else if (os_strncasecmp(cmd, "SETBAND ", 8) == 0) {
 			int val = atoi(cmd + 8);
 			uint setband = 0;
