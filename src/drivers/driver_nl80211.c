@@ -10090,6 +10090,90 @@ static int wpa_driver_nl80211_shared_freq(void *priv)
 }
 
 
+struct ap_freq_data {
+	int wiphy_idx; /* own idx */
+	struct wpa_channel_info *info;
+};
+
+
+static int ap_freq_info_handler(struct nl_msg *msg, void *arg)
+{
+	struct nlattr *tb[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	struct ap_freq_data *data = arg;
+	enum nl80211_iftype iftype;
+
+	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (!tb[NL80211_ATTR_WIPHY] || !tb[NL80211_ATTR_IFTYPE] ||
+	    !tb[NL80211_ATTR_WIPHY_FREQ] ||
+	    !tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE])
+		goto out;
+
+	/* different phy */
+	if (data->wiphy_idx != (int)nla_get_u32(tb[NL80211_ATTR_WIPHY]))
+		goto out;
+
+	/* we only care about APs */
+	iftype = nla_get_u32(tb[NL80211_ATTR_IFTYPE]);
+	if (iftype != NL80211_IFTYPE_AP && iftype != NL80211_IFTYPE_P2P_GO)
+		goto out;
+
+	data->info->frequency = nla_get_u32(tb[NL80211_ATTR_WIPHY_FREQ]);
+
+	switch(nla_get_u32(tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE])) {
+	case NL80211_CHAN_HT40MINUS:
+		data->info->sec_channel_offset = -1;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		data->info->sec_channel_offset = 1;
+		break;
+	default:
+		data->info->sec_channel_offset = 0;
+		break;
+	}
+
+	wpa_printf(MSG_DEBUG, "nl80211: Got shared AP on freq %d sec chan: %d",
+		   data->info->frequency, data->info->sec_channel_offset);
+
+out:
+	return NL_SKIP;
+}
+
+
+static int wpa_driver_nl80211_shared_ap_freq(void *priv,
+					     struct wpa_channel_info *info)
+{
+	struct i802_bss *bss = priv;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	struct nl_msg *msg;
+	struct ap_freq_data data = {
+		.info = info,
+	};
+
+	wpa_printf(MSG_DEBUG, "nl80211: Get shared AP freq for PHY %s",
+		   drv->phyname);
+
+	data.wiphy_idx = nl80211_get_wiphy_index(bss);
+	if (data.wiphy_idx == -1)
+		return -1;
+
+	msg = nlmsg_alloc();
+	if (!msg)
+		return -1;
+
+	nl80211_cmd(drv, msg, NLM_F_DUMP, NL80211_CMD_GET_INTERFACE);
+
+	info->frequency = 0;
+	if (send_and_recv_msgs(drv, msg, ap_freq_info_handler, &data) != 0)
+		return -1;
+
+	wpa_printf(MSG_DEBUG, "nl80211: AP shared freq %d", info->frequency);
+	return info->frequency == 0 ? 0 : 1;
+}
+
+
 static int nl80211_send_frame(void *priv, const u8 *data, size_t data_len,
 			      int encrypt)
 {
@@ -11659,6 +11743,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.signal_poll = nl80211_signal_poll,
 	.send_frame = nl80211_send_frame,
 	.shared_freq = wpa_driver_nl80211_shared_freq,
+	.shared_ap_freq = wpa_driver_nl80211_shared_ap_freq,
 	.set_param = nl80211_set_param,
 	.get_radio_name = nl80211_get_radio_name,
 	.add_pmkid = nl80211_add_pmkid,
