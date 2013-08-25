@@ -1153,6 +1153,16 @@ struct wpa_signal_info {
 };
 
 /**
+ * struct wpa_signal_info - Information about channel
+ */
+struct wpa_channel_info {
+	u32 frequency;
+	int sec_channel_offset; /* 0 = HT40 disabled, -1 = HT40 enabled,
+				 * secondary channel below primary, 1 = HT40
+				 * enabled, secondary channel above primary */
+};
+
+/**
  * struct wpa_driver_ops - Driver interface API definition
  *
  * This structure defines the API that each driver interface needs to implement
@@ -2296,6 +2306,19 @@ struct wpa_driver_ops {
 	 * information for channel selection for other virtual interfaces.
 	 */
 	int (*shared_freq)(void *priv);
+
+	/**
+	 * shared_ap_freq - get operating frequency of shared AP interfaces(s)
+	 * @priv: Private driver interface data
+	 * @info: Shared AP channel info
+	 * Returns: 1 if shared AP was found, 0 if no shared AP is in operation
+	 * or -1 on failure
+	 *
+	 * This function is very similar to shared_freq() for AP interfaces,
+	 * but can also be used to detect APs operating within a different
+	 * instance of hostapd/wpa_supplicant.
+	 */
+	int (*shared_ap_freq)(void *priv, struct wpa_channel_info *info);
 
 	/**
 	 * get_noa - Get current Notice of Absence attribute payload
