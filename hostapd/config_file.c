@@ -2016,6 +2016,20 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 					   "list", line);
 				errors++;
 			}
+		} else if (os_strcmp(buf, "acs_blacklist") == 0) {
+			/* these are not rates but the same function will do */
+			if (hostapd_parse_rates(&conf->acs_blacklist, pos)) {
+				wpa_printf(MSG_ERROR, "Line %d: invalid acs "
+					   "black list", line);
+				errors++;
+			}
+		} else if (os_strcmp(buf, "acs_whitelist") == 0) {
+			/* these are not rates but the same function will do */
+			if (hostapd_parse_rates(&conf->acs_whitelist, pos)) {
+				wpa_printf(MSG_ERROR, "Line %d: invalid acs "
+					   "white list", line);
+				errors++;
+			}
 		} else if (os_strcmp(buf, "preamble") == 0) {
 			if (atoi(pos))
 				conf->preamble = SHORT_PREAMBLE;
