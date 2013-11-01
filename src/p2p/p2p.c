@@ -41,9 +41,39 @@ static void p2p_scan_timeout(void *eloop_ctx, void *timeout_ctx);
  * P2P_PEER_EXPIRATION_AGE - Number of seconds after which inactive peer
  * entries will be removed
  */
+#ifdef ANDROID_P2P
+#define P2P_PEER_EXPIRATION_AGE 30
+#else
 #define P2P_PEER_EXPIRATION_AGE 300
+#endif
 
 #define P2P_PEER_EXPIRATION_INTERVAL (P2P_PEER_EXPIRATION_AGE / 2)
+
+#ifdef ANDROID_P2P
+int p2p_connection_in_progress(struct p2p_data *p2p)
+{
+	int ret = 0;
+
+	switch (p2p->state) {
+		case P2P_CONNECT:
+		case P2P_CONNECT_LISTEN:
+		case P2P_GO_NEG:
+		case P2P_WAIT_PEER_CONNECT:
+		case P2P_WAIT_PEER_IDLE:
+		case P2P_PROVISIONING:
+		case P2P_INVITE:
+		case P2P_INVITE_LISTEN:
+			ret = 1;
+			break;
+
+		default:
+			wpa_printf(MSG_DEBUG, "p2p_connection_in_progress state %d", p2p->state);
+			ret = 0;
+	}
+
+	return ret;
+}
+#endif
 
 static void p2p_expire_peers(struct p2p_data *p2p)
 {
@@ -80,6 +110,13 @@ static void p2p_expire_peers(struct p2p_data *p2p)
 			os_get_time(&dev->last_seen);
 			continue;
 		}
+
+#ifdef ANDROID_P2P
+		/* If Connection is in progress, don't expire the peer
+		*/
+		if (p2p_connection_in_progress(p2p))
+			continue;
+#endif
 
 		p2p_dbg(p2p, "Expiring old peer entry " MACSTR,
 			MAC2STR(dev->info.p2p_device_addr));
