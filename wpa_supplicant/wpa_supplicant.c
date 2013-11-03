@@ -4119,9 +4119,9 @@ int wpa_ssid_scanned(struct wpa_supplicant *wpa_s)
 	int cnt = 0;
 
 	for (ssid = wpa_s->conf->ssid; ssid; ssid = ssid->next)
-		if (!wpas_network_disabled(wpa_s, ssid) && ssid->scan_ssid)
+		if (!wpas_network_disabled(wpa_s, ssid))
 			cnt++;
 
-	wpa_dbg(wpa_s, MSG_DEBUG, "Total active hidden networks %d", cnt);
+	wpa_dbg(wpa_s, MSG_DEBUG, "Total active networks %d", cnt);
 	return cnt;
 }
