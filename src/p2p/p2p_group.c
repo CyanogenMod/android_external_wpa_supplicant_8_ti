@@ -944,9 +944,12 @@ int p2p_group_is_client_connected(struct p2p_group *group, const u8 *dev_addr)
 int p2p_group_is_group_id_match(struct p2p_group *group, const u8 *group_id,
 				size_t group_id_len)
 {
+	const u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 	if (group_id_len != ETH_ALEN + group->cfg->ssid_len)
 		return 0;
-	if (os_memcmp(group_id, group->p2p->cfg->dev_addr, ETH_ALEN) != 0)
+	if ((os_memcmp(group_id, group->p2p->cfg->dev_addr, ETH_ALEN) != 0) &&
+	    (os_memcmp(group_id, bcast, ETH_ALEN) != 0))
 		return 0;
 	return os_memcmp(group_id + ETH_ALEN, group->cfg->ssid,
 			 group->cfg->ssid_len) == 0;

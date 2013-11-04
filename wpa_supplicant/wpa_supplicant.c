@@ -659,6 +659,7 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s,
 		wpa_drv_set_supp_port(wpa_s, 1);
 #endif /* IEEE8021X_EAPOL */
 		wpa_s->after_wps = 0;
+		os_memset(wpa_s->wps_bssid, 0, ETH_ALEN);
 #ifdef CONFIG_P2P
 		wpas_p2p_completed(wpa_s);
 #endif /* CONFIG_P2P */

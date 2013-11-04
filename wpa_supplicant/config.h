@@ -520,6 +520,7 @@ struct wpa_config {
 	int p2p_oper_reg_class;
 	int p2p_oper_channel;
 	int p2p_go_intent;
+	int override_p2p_go_intent;
 	char *p2p_ssid_postfix;
 	int persistent_reconnect;
 	int p2p_intra_bss;

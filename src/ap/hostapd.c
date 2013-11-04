@@ -852,7 +852,15 @@ static int setup_interface(struct hostapd_iface *iface)
 				   "channel. (%d)", ret);
 			return -1;
 		}
-		ret = hostapd_check_ht_capab(iface);
+		/* we don't need hostapd_check_ht_capab if the channel is
+		 * selected automatically */
+		if (ret == 1) {
+			wpa_printf(MSG_DEBUG, "Interface HW mode selection and "
+				   "initialization be completed in a callback");
+			return 0;
+		}
+
+		ret = hostapd_check_ht_capab(iface, NULL);
 		if (ret < 0)
 			return -1;
 		if (ret == 1) {

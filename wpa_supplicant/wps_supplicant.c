@@ -488,6 +488,7 @@ static void wpa_supplicant_wps_event_success(struct wpa_supplicant *wpa_s)
 {
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_SUCCESS);
 	wpa_s->wps_success = 1;
+	os_memcpy(wpa_s->wps_bssid, wpa_s->bssid, ETH_ALEN);
 	wpas_notify_wps_event_success(wpa_s);
 #ifdef CONFIG_P2P
 	wpas_p2p_wps_success(wpa_s, wpa_s->bssid, 0);

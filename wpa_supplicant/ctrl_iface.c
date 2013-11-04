@@ -3143,9 +3143,18 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 	pos2 = os_strstr(pos, " go_intent=");
 	if (pos2) {
 		pos2 += 11;
-		go_intent = atoi(pos2);
-		if (go_intent < 0 || go_intent > 15)
+		if (wpa_s->conf->override_p2p_go_intent)
+			go_intent = wpa_s->conf->override_p2p_go_intent;
+		else
+			go_intent = atoi(pos2);
+
+		if (go_intent < 0 || go_intent > 15) {
+			wpa_printf(MSG_ERROR, "CTRL_IFACE: p2p_go_intent"
+				   "not valid");
 			return -1;
+		}
+
+		wpa_printf(MSG_DEBUG, "CTRL_IFACE: go_intent = %d", go_intent);
 	}
 
 	pos2 = os_strstr(pos, " freq=");
