@@ -656,6 +656,14 @@ static struct wpa_ssid * wpa_scan_res_match(struct wpa_supplicant *wpa_s,
 		}
 	}
 
+#ifdef CONFIG_WPS
+	if (wpa_s->after_wps &&
+	    os_memcmp(wpa_s->wps_bssid, bss->bssid, ETH_ALEN)) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - mismatching BSSID (WPS)");
+		return NULL;
+	}
+#endif /* CONFIG_WPS */
+
 	if (wpa_s->roaming &&
 	    os_memcmp(wpa_s->bssid, bss->bssid, ETH_ALEN) == 0) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "   skip - current bssid (roaming)");

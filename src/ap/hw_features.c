@@ -411,28 +411,16 @@ static int ieee80211n_check_40mhz_2g4(struct hostapd_iface *iface,
 }
 
 
-static void ieee80211n_check_scan(struct hostapd_iface *iface)
+static int ieee80211n_check_scan(struct hostapd_iface *iface,
+				 struct wpa_scan_results *scan_res)
 {
-	struct wpa_scan_results *scan_res;
 	int oper40;
 	int res;
-
-	/* Check list of neighboring BSSes (from scan) to see whether 40 MHz is
-	 * allowed per IEEE Std 802.11-2012, 10.15.3.2 */
-
-	iface->scan_cb = NULL;
-
-	scan_res = hostapd_driver_get_scan_results(iface->bss[0]);
-	if (scan_res == NULL) {
-		hostapd_setup_interface_complete(iface, 1);
-		return;
-	}
 
 	if (iface->current_mode->mode == HOSTAPD_MODE_IEEE80211A)
 		oper40 = ieee80211n_check_40mhz_5g(iface, scan_res);
 	else
 		oper40 = ieee80211n_check_40mhz_2g4(iface, scan_res);
-	wpa_scan_results_free(scan_res);
 
 	if (!oper40) {
 		wpa_printf(MSG_INFO, "20/40 MHz operation not permitted on "
@@ -446,6 +434,27 @@ static void ieee80211n_check_scan(struct hostapd_iface *iface)
 
 	res = ieee80211n_allowed_ht40_channel_pair(iface);
 	hostapd_setup_interface_complete(iface, !res);
+	return 1;
+}
+
+
+static void ieee80211n_get_res_and_check_scan(struct hostapd_iface *iface)
+{
+	struct wpa_scan_results *scan_res;
+
+	/* Check list of neighboring BSSes (from scan) to see whether 40 MHz is
+	 * allowed per IEEE Std 802.11-2012, 10.15.3.2 */
+
+	iface->scan_cb = NULL;
+
+	scan_res = hostapd_driver_get_scan_results(iface->bss[0]);
+	if (scan_res == NULL) {
+		hostapd_setup_interface_complete(iface, 1);
+		return;
+	}
+
+	ieee80211n_check_scan(iface, scan_res);
+	wpa_scan_results_free(scan_res);
 }
 
 
@@ -509,7 +518,7 @@ static int ieee80211n_check_40mhz(struct hostapd_iface *iface)
 	}
 	os_free(params.freqs);
 
-	iface->scan_cb = ieee80211n_check_scan;
+	iface->scan_cb = ieee80211n_get_res_and_check_scan;
 	return 1;
 }
 
@@ -614,7 +623,8 @@ static int ieee80211n_supported_ht_capab(struct hostapd_iface *iface)
 #endif /* CONFIG_IEEE80211N */
 
 
-int hostapd_check_ht_capab(struct hostapd_iface *iface)
+int hostapd_check_ht_capab(struct hostapd_iface *iface,
+			   struct wpa_scan_results *scan_res)
 {
 #ifdef CONFIG_IEEE80211N
 	int ret;
@@ -622,13 +632,307 @@ int hostapd_check_ht_capab(struct hostapd_iface *iface)
 		return 0;
 	if (!ieee80211n_supported_ht_capab(iface))
 		return -1;
-	ret = ieee80211n_check_40mhz(iface);
+	if (scan_res)
+		ret = ieee80211n_check_scan(iface, scan_res);
+	else
+		ret = ieee80211n_check_40mhz(iface);
+
+	/* sometimes the init should proceed async or fail */
 	if (ret)
 		return ret;
 	if (!ieee80211n_allowed_ht40_channel_pair(iface))
 		return -1;
 #endif /* CONFIG_IEEE80211N */
 
+	return 0;
+}
+
+
+static int valid_ap_channel(struct hostapd_iface *iface, int chan)
+{
+	int j;
+	struct hostapd_channel_data *c;
+	int *list;
+
+	/* don't allow AP on channel 14 - only JP 11b rates */
+	if (chan == 14)
+		return 0;
+
+	/* don't allow channels on the the ACS blacklist */
+	if (iface->conf->acs_blacklist) {
+		list = iface->conf->acs_blacklist;
+		for (j = 0; list[j] >= 0; j++)
+			if (chan == list[j])
+				return 0;
+	}
+
+	/* only allow channels from the ACS whitelist */
+	if (iface->conf->acs_whitelist) {
+		list = iface->conf->acs_whitelist;
+		for (j = 0; list[j] >= 0; j++)
+			if (chan == list[j])
+				break;
+
+		/* channel not found */
+		if (list[j] != chan)
+			return 0;
+	}
+
+	for (j = 0; j < iface->current_mode->num_channels; j++) {
+		c = &iface->current_mode->channels[j];
+		if (c->chan == chan)
+			return (c->flag & HOSTAPD_CHAN_DISABLED) ? 0 : 1;
+	}
+
+	/* channel not found */
+	return 0;
+}
+
+
+struct oper_class_map {
+	enum hostapd_hw_mode mode;
+	u8 op_class;
+	u8 min_chan;
+	u8 max_chan;
+	u8 inc;
+	enum { BW40PLUS, BW40MINUS } bw;
+};
+
+/* this is a duplication of the table in p2p_supplicant.c.
+ * all changes here must be propagated there and vice versa */
+static struct oper_class_map op_class[] = {
+#if 0 /* diallow HT40 on 2.4Ghz on purpose */
+	{ HOSTAPD_MODE_IEEE80211G, 83, 1, 9, 1, BW40PLUS },
+	{ HOSTAPD_MODE_IEEE80211G, 84, 5, 13, 1, BW40MINUS },
+#endif
+	{ HOSTAPD_MODE_IEEE80211A, 116, 36, 44, 8, BW40PLUS },
+	{ HOSTAPD_MODE_IEEE80211A, 117, 40, 48, 8, BW40MINUS },
+	{ HOSTAPD_MODE_IEEE80211A, 126, 149, 157, 8, BW40PLUS },
+	{ HOSTAPD_MODE_IEEE80211A, 127, 153, 161, 8, BW40MINUS },
+	{ -1, 0, 0, 0, 0, BW40PLUS } /* terminator */
+};
+
+static int channel_distance(struct hostapd_iface *iface)
+{
+	switch (iface->current_mode->mode) {
+	case HOSTAPD_MODE_IEEE80211A:
+		return 4;
+	case HOSTAPD_MODE_IEEE80211B:
+	case HOSTAPD_MODE_IEEE80211G:
+		return 1;
+	default:
+		break;
+	}
+
+	wpa_printf(MSG_ERROR, "Invalid HW mode for channel distance");
+	return 0;
+}
+
+
+
+/* Returns secondary channel (-1, 1), if possible considering the
+ * user preferred secondary channel. If no HT40 operation is possible,
+ * returns 0 */
+static int select_secondary_channel(struct hostapd_iface *iface,
+				    int primary_chan, int pref_sec_chan)
+{
+	int i;
+	int up_ok = 0, down_ok = 0;
+
+	for (i = 0; op_class[i].op_class; i++) {
+		struct oper_class_map *o = &op_class[i];
+		u8 ch;
+
+		if (o->mode != iface->current_mode->mode)
+			continue;
+
+		if (primary_chan < o->min_chan || primary_chan > o->max_chan)
+			continue;
+
+		for (ch = o->min_chan; ch <= o->max_chan; ch += o->inc) {
+			if (ch == primary_chan) {
+				if (o->bw == BW40PLUS)
+					up_ok = 1;
+				else if (o->bw == BW40MINUS)
+					down_ok = 1;
+
+				break;
+			}
+		}
+	}
+
+	if (up_ok && !valid_ap_channel(iface,
+				primary_chan + channel_distance(iface)))
+		up_ok = 0;
+	if (down_ok && !valid_ap_channel(iface,
+				primary_chan - channel_distance(iface)))
+		down_ok = 0;
+
+	if ((pref_sec_chan == 1 && up_ok) || (pref_sec_chan == -1 && down_ok))
+		return pref_sec_chan;
+
+	if (up_ok)
+		return 1;
+	else if (down_ok)
+		return -1;
+
+	/* no secondary channel possible */
+	return 0;
+}
+
+/* unreasonable number of APs to find on a channel. */
+#define MAX_AP_COUNT 10000
+
+void set_prim_sec_chan(struct hostapd_iface *iface, int *channel_cnt,
+		       int min_cnt, int default_prim_chan)
+{
+	int j, i;
+	int min_sec_cnt = MAX_AP_COUNT, min_sec_prim_chan = -1,
+		min_sec_chan_dir = -1;
+	int prim_chan, sec_chan_dir, sec_chan;
+
+	if (!iface->conf->secondary_channel)
+		goto set;
+
+	/* if a secondary channel is requested, try to select a channel that
+	 * allows HT40 from the minimal AP ones */
+	for (j = 0; j < iface->current_mode->num_channels; j++) {
+		prim_chan = iface->current_mode->channels[j].chan;
+		if (channel_cnt[j] != min_cnt)
+			continue;
+
+		sec_chan_dir = select_secondary_channel(iface, prim_chan,
+					iface->conf->secondary_channel);
+		if (!sec_chan_dir)
+			continue;
+
+		/* see if this secondary channel has minimal APs count */
+		sec_chan = prim_chan + sec_chan_dir * channel_distance(iface);
+		for (i = 0; i < iface->current_mode->num_channels; i++) {
+			if (iface->current_mode->channels[i].chan == sec_chan)
+				break;
+		}
+
+		if (i < iface->current_mode->num_channels &&
+		    channel_cnt[i] < min_sec_cnt) {
+			min_sec_cnt = channel_cnt[i];
+			min_sec_prim_chan = prim_chan;
+			min_sec_chan_dir = sec_chan_dir;
+		}
+	}
+
+	/* found some sec chan with minimal APs */
+	if (min_sec_cnt != MAX_AP_COUNT) {
+		iface->conf->channel = min_sec_prim_chan;
+		iface->conf->secondary_channel = min_sec_chan_dir;
+		return;
+	}
+
+	wpa_printf(MSG_DEBUG, "Could not auto-select secondary channel");
+
+set:
+	iface->conf->channel = default_prim_chan;
+	iface->conf->secondary_channel = 0;
+}
+
+
+static void hostapd_auto_select_scan_cb(struct hostapd_iface *iface)
+{
+	struct wpa_scan_results *scan_res;
+	size_t i, j;
+	int *channel_cnt;
+	int min_cnt, min_idx;
+	struct hostapd_channel_data *chan;
+
+	iface->scan_cb = NULL;
+
+	/* init all channel counters to 0 */
+	channel_cnt = os_zalloc(iface->current_mode->num_channels * sizeof(int));
+	if (channel_cnt == NULL) {
+		hostapd_setup_interface_complete(iface, 1);
+		return;
+	}
+
+	scan_res = hostapd_driver_get_scan_results(iface->bss[0]);
+	if (scan_res == NULL) {
+		hostapd_setup_interface_complete(iface, 1);
+		goto free_chans;
+	}
+
+	/* increment channel counters according to scan results */
+	for (i = 0; i < scan_res->num; i++) {
+		struct wpa_scan_res *bss = scan_res->res[i];
+		for (j = 0; j < iface->current_mode->num_channels; j++) {
+			chan = &iface->current_mode->channels[j];
+			if (bss->freq == chan->freq) {
+				channel_cnt[j]++;
+				wpa_printf(MSG_MSGDUMP, "%d BSSes on ch %d",
+					   channel_cnt[j], chan->chan);
+				break;
+			}
+		}
+	}
+
+	min_idx = -1;
+	min_cnt = MAX_AP_COUNT;
+	for (j = 0; j < iface->current_mode->num_channels; j++) {
+		chan = &iface->current_mode->channels[j];
+		if (!valid_ap_channel(iface, chan->chan)) {
+			channel_cnt[j] = MAX_AP_COUNT;
+			continue;
+		}
+
+		if (channel_cnt[j] >= min_cnt)
+			continue;
+
+		min_cnt = channel_cnt[j];
+		min_idx = j;
+	}
+
+	if (min_idx == -1) {
+		wpa_printf(MSG_ERROR,
+			   "Could not select channel automatically");
+		hostapd_setup_interface_complete(iface, 1);
+		goto free_scan;
+	}
+
+	chan = &iface->current_mode->channels[min_idx];
+	wpa_printf(MSG_DEBUG, "Min APs found in channel %d (AP count %d)",
+		   chan->chan, min_cnt);
+
+	/* Select a secondary channel and fine tune the primary one.
+	 * Basically we try to start HT40, without increasing the number
+	 * of APs on the primary channel. */
+	set_prim_sec_chan(iface, channel_cnt, min_cnt, chan->chan);
+
+	wpa_printf(MSG_DEBUG, "Auto-selected channel: %d secondary: %d",
+		   iface->conf->channel, iface->conf->secondary_channel);
+
+	/* will complete interface setup */
+	hostapd_check_ht_capab(iface, scan_res);
+
+free_scan:
+	wpa_scan_results_free(scan_res);
+
+free_chans:
+	os_free(channel_cnt);
+}
+
+
+static int hostapd_auto_select_channel(struct hostapd_iface *iface)
+{
+	struct wpa_driver_scan_params params;
+
+	/* TODO: we can scan only the current HW mode */
+	wpa_printf(MSG_DEBUG, "Scan for neighboring BSSes to select channel");
+	os_memset(&params, 0, sizeof(params));
+	if (hostapd_driver_scan(iface->bss[0], &params) < 0) {
+		wpa_printf(MSG_ERROR, "Failed to request a scan of "
+			   "neighboring BSSes");
+		return -1;
+	}
+
+	iface->scan_cb = hostapd_auto_select_scan_cb;
 	return 0;
 }
 
@@ -666,6 +970,24 @@ int hostapd_select_hw_mode(struct hostapd_iface *iface)
 			       "(%d) (hw_mode in hostapd.conf)",
 			       (int) iface->conf->hw_mode);
 		return -2;
+	}
+
+	/*
+	 * request a scan of neighboring BSSes and select the
+	 * channel automatically
+	 */
+	if (iface->conf->channel == 0) {
+		if (hostapd_auto_select_channel(iface)) {
+			wpa_printf(MSG_ERROR, "Channel not configured "
+				   "(hw_mode/channel in hostapd.conf) and "
+				   "automatic channel selection failed");
+			return -3;
+		} else {
+			wpa_printf(MSG_DEBUG, "Operating channel will be "
+				   "selected automatically");
+			/* will be completed async */
+			return 1;
+		}
 	}
 
 	ok = 0;
@@ -717,14 +1039,8 @@ int hostapd_select_hw_mode(struct hostapd_iface *iface)
 			ok = 0;
 		}
 	}
-	if (iface->conf->channel == 0) {
-		/* TODO: could request a scan of neighboring BSSes and select
-		 * the channel automatically */
-		wpa_printf(MSG_ERROR, "Channel not configured "
-			   "(hw_mode/channel in hostapd.conf)");
-		return -3;
-	}
-	if (ok == 0 && iface->conf->channel != 0) {
+
+	if (ok == 0) {
 		hostapd_logger(iface->bss[0], NULL,
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_WARNING,

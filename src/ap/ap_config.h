@@ -454,6 +454,9 @@ struct hostapd_config {
 	u32 vht_capab;
 	int ieee80211ac;
 	u8 vht_oper_chwidth;
+
+	int *acs_blacklist;
+	int *acs_whitelist;
 };
 
 
