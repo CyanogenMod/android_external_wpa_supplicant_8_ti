@@ -3197,12 +3197,6 @@ static void p2p_timeout_connect(struct p2p_data *p2p)
 {
 	p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 	if (p2p->go_neg_peer &&
-	    (p2p->go_neg_peer->flags & P2P_DEV_WAIT_GO_NEG_CONFIRM)) {
-		p2p_dbg(p2p, "Wait for GO Negotiation Confirm timed out - assume GO Negotiation failed");
-		p2p_go_neg_failed(p2p, p2p->go_neg_peer, -1);
-		return;
-	}
-	if (p2p->go_neg_peer &&
 	    (p2p->go_neg_peer->flags & P2P_DEV_PEER_WAITING_RESPONSE) &&
 	    p2p->go_neg_peer->connect_reqs < 120) {
 		p2p_dbg(p2p, "Peer expected to wait our response - skip listen");
