@@ -27,8 +27,6 @@
 
 #include <linux/types.h>
 
-#define NL80211_GENL_NAME "nl80211"
-
 /**
  * DOC: Station handling
  *
@@ -648,6 +646,44 @@
  * @NL80211_CMD_CRIT_PROTOCOL_STOP: Indicates the connection reliability can
  *	return back to normal.
  *
+ * @NL80211_CMD_SCAN_CANCEL: Stop currently running scan (both sw and hw).
+ *	This operation will eventually invoke %NL80211_CMD_SCAN_ABORTED
+ *	event, partial scan results will be available. Returns -ENOENT
+ *	if scan is not running.
+ *
+ * @NL80211_CMD_IM_SCAN_RESULT: Intermediate scan result notification event,
+ *	this event could be enabled with @NL80211_ATTR_IM_SCAN_RESULT
+ *	flag during @NL80211_CMD_TRIGGER_SCAN. This event contains
+ *	%NL80211_BSS_BSSID which is used to specify the BSSID of received
+ *	scan result and %NL80211_BSS_SIGNAL_MBM to indicate signal strength.
+ *	On reception of this notification, userspace may decide to stop earlier
+ *	currently running scan with (@NL80211_CMD_SCAN_CANCEL).
+ *
+ * @NL80211_CMD_ROAMING_SUPPORT: A notify event used to alert userspace
+ *      regarding changes in roaming support by the driver. If roaming is
+ *      disabled (marked by the presence of @NL80211_ATTR_ROAMING_DISABLED flag)
+ *      userspace should disable background scans and roaming attempts.
+ *
+ * @NL80211_CMD_AP_CH_SWITCH: Perform a channel switch in the driver (for
+ *	AP/GO).
+ *	%NL80211_ATTR_WIPHY_FREQ: new channel frequency.
+ *	%NL80211_ATTR_CH_SWITCH_BLOCK_TX: block tx on the current channel.
+ *	%NL80211_ATTR_CH_SWITCH_POST_BLOCK_TX: block tx on the target channel.
+ *	%NL80211_FREQ_ATTR_CH_SWITCH_COUNT: number of TBTT's until the channel
+ *	switch event.
+ *
+ * @NL80211_CMD_REQ_CH_SW: Request a channel switch from a GO/AP.
+ *
+ * @NL80211_CMD_CHANNEL_SWITCH: Perform a channel switch by announcing the
+ *	the new channel information (Channel Switch Announcement - CSA)
+ *	in the beacon for some time (as defined in the
+ *	%NL80211_ATTR_CH_SWITCH_COUNT parameter) and then change to the
+ *	new channel. Userspace provides the new channel information (using
+ *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel
+ *	width). %NL80211_ATTR_CH_SWITCH_BLOCK_TX may be supplied to inform
+ *	other station that transmission must be blocked until the channel
+ *	switch is complete.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -810,6 +846,24 @@ enum nl80211_commands {
 	NL80211_CMD_CRIT_PROTOCOL_START,
 	NL80211_CMD_CRIT_PROTOCOL_STOP,
 
+	NL80211_CMD_GET_COALESCE,
+	NL80211_CMD_SET_COALESCE,
+
+	NL80211_CMD_CHANNEL_SWITCH,
+
+	/* leave some room for adding nl80211 commands for old kernels */
+	NL80211_CMD_SCAN_CANCEL = NL80211_CMD_FT_EVENT + 40,
+
+	NL80211_CMD_IM_SCAN_RESULT,
+
+	NL80211_CMD_ROAMING_SUPPORT,
+
+	/* set/cancel_priority is depcrecated. keep it for backward compat */
+	NL80211_CMD_SET_PRIORITY,
+	NL80211_CMD_CANCEL_PRIORITY,
+
+	NL80211_CMD_AP_CH_SWITCH,
+	NL80211_CMD_REQ_CH_SW,
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -1226,7 +1280,9 @@ enum nl80211_commands {
  *	triggers.
  *
  * @NL80211_ATTR_SCHED_SCAN_INTERVAL: Interval between scheduled scan
- *	cycles, in msecs.
+ *	cycles, in msecs. If short interval is supported by the driver
+ *      and configured then this will be used only after the requested
+ *      number of short intervals
  *
  * @NL80211_ATTR_SCHED_SCAN_MATCH: Nested attribute with one or more
  *	sets of attributes to match during scheduled scans.  Only BSSs
@@ -1431,10 +1487,58 @@ enum nl80211_commands {
  * @NL80211_ATTR_MAX_CRIT_PROT_DURATION: duration in milliseconds in which
  *      the connection should have increased reliability (u16).
  *
- * @NL80211_ATTR_PEER_AID: Association ID for the peer TDLS station (u16).
- *	This is similar to @NL80211_ATTR_STA_AID but with a difference of being
- *	allowed to be used with the first @NL80211_CMD_SET_STATION command to
- *	update a TDLS peer STA entry.
+ * @%NL80211_ATTR_IM_SCAN_RESULT: Flag attribute to enable intermediate
+ *	scan result notification event (%NL80211_CMD_IM_SCAN_RESULT)
+ *	for the %NL80211_CMD_TRIGGER_SCAN command.
+ *	When set: will notify on each new scan result in the cache.
+ *
+ * @%NL80211_ATTR_IM_SCAN_RESULT_MIN_RSSI: Intermediate event filtering.
+ *	When set: will notify only those new scan result whose signal
+ *	strength of probe response/beacon (in dBm) is stronger than this
+ *	negative value (usually: -20 dBm > X > -95 dBm).
+ *
+ * @%NL80211_ATTR_SCAN_MIN_DWELL: Minimum scan dwell time (in TUs), u32
+ *	attribute to setup minimum time to wait on each channel, if received
+ *	at least one probe response during this period will continue waiting
+ *	%NL80211_ATTR_SCAN_MAX_DWELL, otherwise will move to next channel.
+ *	Relevant only for active scan, used with %NL80211_CMD_TRIGGER_SCAN
+ *	command. This is optional attribute, so if it's not set driver should
+ *	use hardware default values.
+ * @%NL80211_ATTR_SCAN_MAX_DWELL: Maximum scan dwell time (in TUs), u32
+ *	attribute to setup maximum time to wait on each channel.
+ *	Relevant only for active scan, used with %NL80211_CMD_TRIGGER_SCAN
+ *	command. This is optional attribute, so if it's not set driver should
+ *	use hardware default values.
+ * @%NL80211_ATTR_SCAN_NUM_PROBE:  Attribute (u8) to setup number of probe
+ *	requests to transmit on each active scan channel, used with
+ *	%NL80211_CMD_TRIGGER_SCAN command.
+ *
+ * @NL80211_ATTR_SCHED_SCAN_SHORT_INTERVAL: interval between
+ *      each short interval scheduled scan cycle in msecs.
+ * @NL80211_ATTR_SCHED_SCAN_NUM_SHORT_INTERVALS: number of short
+ *      sched scan intervals before switching to the long interval
+ * @NL80211_ATTR_ROAMING_DISABLED: indicates that the driver can't do roaming
+ *      currently.
+ *
+ * @NL80211_ATTR_CH_SWITCH_COUNT: the number of TBTT's until the channel
+ *	switch event
+ * @NL80211_ATTR_CH_SWITCH_BLOCK_TX: block tx on the current channel before the
+ *	channel switch operation.
+ * @NL80211_ATTR_CH_SWITCH_POST_BLOCK_TX: block tx on the target channel after
+ *	the channel switch operation, should be set if the target channel is
+ *	DFS channel.
+ *
+ * @NL80211_ATTR_CH_SWITCH_COUNT: u32 attribute specifying the number of TBTT's
+ *	until the channel switch event.
+ * @NL80211_ATTR_CH_SWITCH_BLOCK_TX: flag attribute specifying that transmission
+ *	must be blocked on the current channel (before the channel switch
+ *	operation).
+ * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
+ *	for the time while performing a channel switch.
+ * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
+ *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
+ *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -1736,6 +1840,26 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_PEER_AID,
 
+	/* leave some room for new attributes in nl80211 updates */
+	NL80211_ATTR_IM_SCAN_RESULT = NL80211_ATTR_IE_RIC + 40,
+	NL80211_ATTR_IM_SCAN_RESULT_MIN_RSSI,
+
+	NL80211_ATTR_SCAN_MIN_DWELL,
+	NL80211_ATTR_SCAN_MAX_DWELL,
+	NL80211_ATTR_SCAN_NUM_PROBE,
+
+	NL80211_ATTR_SCHED_SCAN_SHORT_INTERVAL,
+	NL80211_ATTR_SCHED_SCAN_NUM_SHORT_INTERVALS,
+
+	NL80211_ATTR_ROAMING_DISABLED,
+	NL80211_ATTR_CH_SWITCH_POST_BLOCK_TX,
+
+	NL80211_ATTR_CH_SWITCH_COUNT,
+	NL80211_ATTR_CH_SWITCH_BLOCK_TX,
+	NL80211_ATTR_CSA_IES,
+	NL80211_ATTR_CSA_C_OFF_BEACON,
+	NL80211_ATTR_CSA_C_OFF_PRESP,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -2000,10 +2124,6 @@ enum nl80211_sta_bss_param {
  * @NL80211_STA_INFO_PEER_PM: peer mesh STA link-specific power mode
  * @NL80211_STA_INFO_NONPEER_PM: neighbor mesh STA power save mode towards
  *	non-peer STA
- * @NL80211_STA_INFO_CHAIN_SIGNAL: per-chain signal strength of last PPDU
- *	Contains a nested array of signal strength attributes (u8, dBm)
- * @NL80211_STA_INFO_CHAIN_SIGNAL_AVG: per-chain signal strength average
- *	Same format as NL80211_STA_INFO_CHAIN_SIGNAL.
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -2033,8 +2153,6 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_NONPEER_PM,
 	NL80211_STA_INFO_RX_BYTES64,
 	NL80211_STA_INFO_TX_BYTES64,
-	NL80211_STA_INFO_CHAIN_SIGNAL,
-	NL80211_STA_INFO_CHAIN_SIGNAL_AVG,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -2652,10 +2770,6 @@ enum nl80211_meshconf_params {
  * @NL80211_MESH_SETUP_USERSPACE_MPM: Enable this option if userspace will
  *	implement an MPM which handles peer allocation and state.
  *
- * @NL80211_MESH_SETUP_AUTH_PROTOCOL: Inform the kernel of the authentication
- *	method (u8, as defined in IEEE 8.4.2.100.6, e.g. 0x1 for SAE).
- *	Default is no authentication method required.
- *
  * @NL80211_MESH_SETUP_ATTR_MAX: highest possible mesh setup attribute number
  *
  * @__NL80211_MESH_SETUP_ATTR_AFTER_LAST: Internal use
@@ -2669,7 +2783,6 @@ enum nl80211_mesh_setup_params {
 	NL80211_MESH_SETUP_USERSPACE_AMPE,
 	NL80211_MESH_SETUP_ENABLE_VENDOR_SYNC,
 	NL80211_MESH_SETUP_USERSPACE_MPM,
-	NL80211_MESH_SETUP_AUTH_PROTOCOL,
 
 	/* keep last */
 	__NL80211_MESH_SETUP_ATTR_AFTER_LAST,
@@ -3065,6 +3178,14 @@ enum nl80211_tx_power_setting {
  *	first (including SNAP header unpacking) and then matched.
  * @NL80211_WOWLAN_PKTPAT_OFFSET: packet offset, pattern is matched after
  *	these fixed number of bytes of received packet
+ *
+ * @NL80211_WOWLAN_ACTION: pattern action which can be either to wake up
+ *      on this pattern or drop it and avoid wake up. This can be used to
+ *      specify an excpetion/blacklist pattern that shouldn't cause wakeup
+ *      despite the packet matching another wowlan pattern. For example:
+ *      configure all IPv4 multicast to wake up except certain type of packets
+ *      This can be either NL80211_WOWLAN_ACTION_ALLOW or DROP.
+ *      If this attribute is missing the default would be ALLOW.
  * @NUM_NL80211_WOWLAN_PKTPAT: number of attributes
  * @MAX_NL80211_WOWLAN_PKTPAT: max attribute number
  */
@@ -3073,9 +3194,28 @@ enum nl80211_wowlan_packet_pattern_attr {
 	NL80211_WOWLAN_PKTPAT_MASK,
 	NL80211_WOWLAN_PKTPAT_PATTERN,
 	NL80211_WOWLAN_PKTPAT_OFFSET,
+	NL80211_WOWLAN_PKTPAT_ACTION = NL80211_WOWLAN_PKTPAT_PATTERN + 10,
 
 	NUM_NL80211_WOWLAN_PKTPAT,
 	MAX_NL80211_WOWLAN_PKTPAT = NUM_NL80211_WOWLAN_PKTPAT - 1,
+};
+
+
+/**
+ * enum nl80211_wowlan_action - WoWLAN packet pattern action
+ * @NL80211_WOWLAN_ACTION_ALLOW: this pattern should wake up the host
+ * and the packet should be forwarded to the host unless this packet
+ * matches a DROP rule.
+ * @NL80211_WOWLAN_ACTION_DROP: a packet containing this pattern shouldn't
+ * wake up the host.
+ */
+enum nl80211_wowlan_action {
+	NL80211_WOWLAN_ACTION_ALLOW,
+	NL80211_WOWLAN_ACTION_DROP,
+
+	/* keep last */
+	NUM_NL80211_WOWLAN_ACTION,
+	MAX_NL80211_WOWLAN_ACTION = NUM_NL80211_WOWLAN_ACTION - 1,
 };
 
 /**
@@ -3106,6 +3246,7 @@ struct nl80211_wowlan_pattern_support {
  *	is detected is implementation-specific (flag)
  * @NL80211_WOWLAN_TRIG_MAGIC_PKT: wake up on magic packet (6x 0xff, followed
  *	by 16 repetitions of MAC addr, anywhere in payload) (flag)
+ * @NL80211_WOWLAN_TRIG_PKT_PATTERN_DEFAULT_ACTION: default action for packet filtering
  * @NL80211_WOWLAN_TRIG_PKT_PATTERN: wake up on the specified packet patterns
  *	which are passed in an array of nested attributes, each nested attribute
  *	defining a with attributes from &struct nl80211_wowlan_trig_pkt_pattern.
@@ -3172,6 +3313,7 @@ enum nl80211_wowlan_triggers {
 	NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST,
 	NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE,
 	NL80211_WOWLAN_TRIG_RFKILL_RELEASE,
+	NL80211_WOWLAN_TRIG_PKT_PATTERN_DEFAULT_ACTION,
 	NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211,
 	NL80211_WOWLAN_TRIG_WAKEUP_PKT_80211_LEN,
 	NL80211_WOWLAN_TRIG_WAKEUP_PKT_8023,
@@ -3576,6 +3718,7 @@ enum nl80211_ap_sme_features {
  *	Peering Management entity which may be implemented by registering for
  *	beacons or NL80211_CMD_NEW_PEER_CANDIDATE events. The mesh beacon is
  *	still generated by the driver.
+ * @NL80211_FEATURE_AP_CH_SWITCH: This driver supports AP channel switch.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3595,6 +3738,8 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_ADVERTISE_CHAN_LIMITS		= 1 << 14,
 	NL80211_FEATURE_FULL_AP_CLIENT_STATE		= 1 << 15,
 	NL80211_FEATURE_USERSPACE_MPM			= 1 << 16,
+	NL80211_FEATURE_SCHED_SCAN_INTERVALS  = 1 << 20,
+	NL80211_FEATURE_AP_CH_SWITCH	= 1 << 21,
 };
 
 /**
