@@ -251,8 +251,7 @@ static int p2p_block_op_freq(unsigned int freq)
 }
 
 
-static size_t p2p_copy_reg_class(struct p2p_reg_class *dc,
-				 struct p2p_reg_class *sc)
+size_t p2p_copy_reg_class(struct p2p_reg_class *dc, struct p2p_reg_class *sc)
 {
 	unsigned int i;
 
