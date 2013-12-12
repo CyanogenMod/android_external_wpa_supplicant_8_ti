@@ -5187,6 +5187,10 @@ static int wpa_supplicant_driver_cmd(struct wpa_supplicant *wpa_s, char *cmd,
 			ret = os_snprintf(buf, buflen, "%s\n", "OK");
 		}
 	}
+
+	if (ret == 0)
+		ret = os_snprintf(buf, buflen, "%s\n", "OK");
+
 	return ret;
 }
 #endif /* ANDROID */
