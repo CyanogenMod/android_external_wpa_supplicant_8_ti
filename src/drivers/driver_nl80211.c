@@ -10615,6 +10615,8 @@ static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 	} else if (os_strncasecmp(cmd, "SETBAND ", 8) == 0) {
 		/* Do nothing: Handled by wpa_supplicant_driver_cmd */
 		return 0;
+	} else if(os_strncasecmp(cmd, "COUNTRY ", 8) == 0) {
+		return wpa_driver_nl80211_set_country(priv, cmd + 8);
 	} else {
 		wpa_printf(MSG_ERROR, "Unsupported command: %s", cmd);
 		ret = -1;
