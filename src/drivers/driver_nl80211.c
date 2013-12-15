@@ -331,7 +331,7 @@ static int wpa_driver_nl80211_probe_req_report(struct i802_bss *bss,
 static int android_pno_start(struct i802_bss *bss,
 			     struct wpa_driver_scan_params *params);
 static int android_pno_stop(struct i802_bss *bss);
-extern int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
+static int wpa_driver_nl80211_driver_cmd(void *priv, char *cmd, char *buf,
 					 size_t buf_len);
 #endif /* ANDROID */
 #ifdef ANDROID_P2P
