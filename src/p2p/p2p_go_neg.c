@@ -710,15 +710,16 @@ void p2p_process_go_neg_req(struct p2p_data *p2p, const u8 *sa,
 			p2p_stop_find_for_freq(p2p, rx_freq);
 		p2p_set_state(p2p, P2P_GO_NEG);
 		p2p_clear_timeout(p2p);
-		dev->dialog_token = msg.dialog_token;
 		os_memcpy(dev->intended_addr, msg.intended_addr, ETH_ALEN);
 		p2p->go_neg_peer = dev;
 		status = P2P_SC_SUCCESS;
 	}
 
 fail:
-	if (dev)
+	if (dev) {
 		dev->status = status;
+		dev->dialog_token = msg.dialog_token;
+	}
 	resp = p2p_build_go_neg_resp(p2p, dev, msg.dialog_token, status,
 				     !tie_breaker);
 	p2p_parse_free(&msg);
