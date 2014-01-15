@@ -6809,7 +6809,9 @@ static int wpa_driver_nl80211_sta_add(void *priv,
 			   params->listen_interval);
 		NLA_PUT_U16(msg, NL80211_ATTR_STA_LISTEN_INTERVAL,
 			    params->listen_interval);
-	} else if (params->aid && (params->flags & WPA_STA_TDLS_PEER)) {
+	}
+#ifndef BOARD_WIFI_SKIP_CAPABILITIES
+	else if (params->aid && (params->flags & WPA_STA_TDLS_PEER)) {
 		wpa_printf(MSG_DEBUG, "  * peer_aid=%u", params->aid);
 		NLA_PUT_U16(msg, NL80211_ATTR_PEER_AID, params->aid);
 	}
@@ -6841,6 +6843,7 @@ static int wpa_driver_nl80211_sta_add(void *priv,
 			params->ext_capab_len, params->ext_capab);
 	}
 
+#endif
 	os_memset(&upd, 0, sizeof(upd));
 	upd.mask = sta_flags_nl80211(params->flags);
 	upd.set = upd.mask;

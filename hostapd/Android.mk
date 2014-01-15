@@ -38,6 +38,10 @@ endif
 
 L_CFLAGS += -DANDROID_P2P
 
+ifeq ($(BOARD_WIFI_SKIP_CAPABILITIES), true)
+L_CFLAGS += -DBOARD_WIFI_SKIP_CAPABILITIES
+endif
+
 # Use Android specific directory for control interface sockets
 L_CFLAGS += -DCONFIG_CTRL_IFACE_CLIENT_DIR=\"/data/misc/wifi/sockets\"
 L_CFLAGS += -DCONFIG_CTRL_IFACE_DIR=\"/data/system/hostapd\"
